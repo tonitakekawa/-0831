@@ -1,0 +1,76 @@
+<style>
+  #aporia-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  #aporia-bg.visible {
+    opacity: 1;
+  }
+</style>
+
+<div id="aporia-bg"></div>
+
+<script>
+(() => {
+  // 各キーに対応する画像
+  // 'a' は最初(0)と最後(1)で別の絵にできる
+  const images = {
+    'a': ['a.jpg', 'a2.jpg'],  // 1回目, 2回目
+    'p': ['p.jpg'],
+    'o': ['o.jpg'],
+    'r': ['r.jpg'],
+    'i': ['i.jpg'],
+  };
+
+  const aporia = ['a', 'p', 'o', 'r', 'i', 'a'];
+  let position = 0;  // aporia のどこまで進んだか
+
+  const bg = document.getElementById('aporia-bg');
+  let timer = null;
+
+  document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    const key = e.key.toLowerCase();
+    if (!images[key]) return;
+
+    // 'a' キーが押された場合、aporia の現在位置に応じて絵を選ぶ
+    let imagePath;
+    if (key === 'a') {
+      // aporia の文脈を追跡
+      if (aporia[position] === 'a') {
+        imagePath = images['a'][position === 0 ? 0 : 1];
+        position = position === 0 ? 1 : 0;  // 次の 'a' へ、または先頭に戻る
+      } else {
+        // 文脈から外れた a が来た→リセットして1枚目
+        imagePath = images['a'][0];
+        position = 1;
+      }
+    } else {
+      imagePath = images[key][0];
+      // aporia の文脈を進める
+      if (aporia[position] === key) {
+        position++;
+      } else {
+        position = 0;
+      }
+    }
+
+    bg.style.backgroundImage = `url('${imagePath}')`;
+    bg.classList.add('visible');
+
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      bg.classList.remove('visible');
+    }, 3000);
+  });
+})();
+</script>

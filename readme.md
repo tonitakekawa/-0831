@@ -1,7 +1,12 @@
 # コンテンツ化コマンド
 
 ```
-pandoc 内容.md -o index.html --standalone --metadata title="サイト0831"
+pandoc 内容.md \
+  -o index.html \
+  --standalone \
+  --include-after-body=action.html \
+  --variable title="" \
+  --metadata title="ἀπορία"
 ```
 
 # コミット
