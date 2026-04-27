@@ -1,7 +1,7 @@
 # コンテンツ化コマンド
 
 ```
-pandoc 内容.md -o index.html
+pandoc 内容.md -o index.html --standalone --metadata title="サイト0831"
 ```
 
 # コミット
