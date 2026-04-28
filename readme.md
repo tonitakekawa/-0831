@@ -1,6 +1,6 @@
 # コンテンツ化コマンド
 
-```
+``` mac
 pandoc 内容.md \
   -o index.html \
   --standalone \
