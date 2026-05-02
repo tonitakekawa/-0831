@@ -1,0 +1,19 @@
+{
+  "VsCodeTaskButtons.tasks": [
+    {
+      "label": "$(file-code) pandoc",
+      "task": "📄 pandoc (Mac)",
+      "tooltip": "内容.md → index.html"
+    },
+    {
+      "label": "$(cloud-upload) push",
+      "task": "🚀 git push",
+      "tooltip": "git add . && commit && push"
+    },
+    {
+      "label": "$(rocket) 変換→push",
+      "task": "⚡ 変換 → push",
+      "tooltip": "pandoc変換してそのままpush"
+    }
+  ]
+}
