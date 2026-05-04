@@ -26,7 +26,13 @@
     {
       "label": "⚡ 変換 → push",
       "type": "shell",
-      "command": "pandoc 内容.md -o index.html --standalone --include-after-body=action.html --variable title='' --metadata title='ἀπορία' && git add . && git commit -m '.' && git push",
+      "command": "pandoc '内容.md' -o index.html --standalone --include-after-body=action.html --variable title='' --metadata title='ἀπορία'; if ($?) { git add .; git commit -m '.'; git push }",
+      "options": {
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
+      },
       "group": "build",
       "presentation": {
         "reveal": "always",
