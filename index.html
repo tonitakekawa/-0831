@@ -171,14 +171,84 @@
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
   <style>
-  :root {
-    color-scheme: light dark;
-  }
+    body {
+      margin: 0;
+      max-width: none;
+      padding: 0;
+    }
+    .layout {
+      display: flex;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .left-pane {
+      width: 140px;
+      flex-shrink: 0;
+      padding: 50px 20px 50px 30px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #e6e6e6;
+      box-sizing: border-box;
+    }
+    .left-pane ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .left-pane li {
+      margin: 0.8em 0;
+    }
+    .left-pane a {
+      text-decoration: none;
+      color: #1a1a1a;
+    }
+    .left-pane a:hover {
+      text-decoration: underline;
+    }
+    .right-pane {
+      flex: 1;
+      max-width: 36em;
+      padding: 50px;
+      box-sizing: border-box;
+    }
+    @media (max-width: 600px) {
+      .layout {
+        flex-direction: column;
+      }
+      .left-pane {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid #e6e6e6;
+        padding: 20px;
+      }
+      .left-pane ul {
+        display: flex;
+        gap: 1.5em;
+      }
+      .right-pane {
+        padding: 20px;
+      }
+    }
   </style>
 </head>
 <body>
-<h1 id="サイト0831">サイト0831</h1>
+<div class="layout">
+  <nav class="left-pane">
+    <ul>
+      <li><a href="#出来事">出来事</a></li>
+      <li><a href="#好き">好き</a></li>
+    </ul>
+  </nav>
+  <main class="right-pane">
 <h1 id="出来事">出来事</h1>
+<h1 id="水">5/6 水</h1>
+<p>パキスタンというかハラル食材店に行って色々買った。入る時扉が開いていたのでお会計をしてから「閉めたほうがいいですか？」と言ったら？という顔をしていたのでShould
+I close it?と聞いて互いにThank
+youと言った。ローズウォーターを買ったので、マキネッタに添えた。知らない味がした。</p>
 <h1 id="火">5/5 火</h1>
 <p>電車がすしづめだったので、徒歩を選んだ。文脈なき芸術とは何か、という命題を立てた。現前である、と置いた。Claudeが現前とはと問うので、主に地面と空と答えた。久しぶりに絵を描くので水張りをしてい・・・たら破れた。が、構わず続行。張れるか検証する。ギターの１２フレットが合わないのでとりあえず弦を変えることにする。おそらく弦高調整が要る。VRCでノースカロライナ人とsex
 machineを歌った。</p>
@@ -279,6 +349,11 @@ href="https://jmapps.ne.jp/apmoa/det.html?data_id=4106">福田恵一の大山守
 <p>お茶 お花</p>
 <h1 id="書物">書物</h1>
 <p>マハーバーラタ</p>
+<h1 id="料理">料理</h1>
+<p>北インド料理 南インド料理 スリランカ料理 ネパール料理 四川菜 雲南菜
+タイ料理 ベトナム料理　ミャンマー家庭料理</p>
+  </main>
+</div>
 <style>
   #aporia-bg {
     position: fixed;
