@@ -213,6 +213,9 @@
       padding: 50px;
       box-sizing: border-box;
     }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .left-pane a.active { font-weight: bold; }
     @media (max-width: 600px) {
       .layout {
         flex-direction: column;
@@ -239,12 +242,19 @@
 <div class="layout">
   <nav class="left-pane">
     <ul>
-      <li><a href="#出来事">出来事</a></li>
-      <li><a href="#好き">好き</a></li>
+      <li><a href="#" class="tab-link active" data-target="tab-top">top</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-events">出来事</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-likes">好き</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-works">制作</a></li>
     </ul>
   </nav>
   <main class="right-pane">
-<h1 id="出来事">出来事</h1>
+<div id="tab-top" class="tab-pane active">
+
+</div>
+<div id="tab-events" class="tab-pane">
+<h1 id="日">5/10 日</h1>
+<p>パキスタン料理店でマトンパラクとロティとマンゴージュースを頂いた。非常に美味い。VRCで平和とは具体的に観測可能な日常であって万人による万人への戦争（を防ぐための暴力としての法と暴力云々）ではないという話があり、わたしはそれを肯定可能である。具体的には政権は道具であって目的ではないという態度になると思わしい。</p>
 <h1 id="土">5/9 土</h1>
 <p>水張りに再トライ。今度は成功。</p>
 <h1 id="金">5/8 金</h1>
@@ -262,14 +272,14 @@ machineを歌った。</p>
 <h1 id="月">5/4 月</h1>
 <p>朝、薔薇の香りを浴びる。ジャガビーでエスプレッソを飲む。
 おちょぼ稲荷に連れて行ってもらった。帰りに美術品の展示をやっていたので見ていたのだが非常に良い。美術品の基準とは何か、となったので、その時は答えを保留にしたが、情報量またはエントロピーで定義できると思う。であれば明らかに美術品外も含まれるじゃないか、と思われるかも知れない。cpersonaを試すもうまく動かない。zennだけ買うか。。。</p>
-<h1 id="日">5/3 日</h1>
+<h1 id="日-1">5/3 日</h1>
 <p>ミャンマーフェスに行った。1000人くらいいたんじゃないかな。わたしは平気で混じるのだが、あんまり日本人がいない。面白いと思うんだけどな。VRCではレンブラント好きな人がいた。</p>
 <h1 id="土-1">5/2 土</h1>
 <p>今度野点をしようと思い、お菓子屋さんに和三盆を仕入れつつ勉強がてら和菓子とお抹茶をいただいた。最近のお菓子屋さんは攻めてて良い。</p>
 <h1 id="金-1">5/1 金</h1>
-<p>電ドラとサックスを吹いた。サックスは初めて。楽しい。最近はVRCでキャッチボールをしている。オタマトーンガチ勢がいた。
-3 # 4/30 - 木
-ネパール産アタとスリランカ産クミン、マスタードシードとマスタードオイルを手に入れた。チャパティとダルカレー、アチャールを作った。美味い。店主が白いアタあるよ？って聞いてきた。黒い方がいいと答えた。深い意味があるのだろうか。</p>
+<p>電ドラとサックスを吹いた。サックスは初めて。楽しい。最近はVRCでキャッチボールをしている。オタマトーンガチ勢がいた。</p>
+<h1 id="木-1">4/30 - 木</h1>
+<p>ネパール産アタとスリランカ産クミン、マスタードシードとマスタードオイルを手に入れた。チャパティとダルカレー、アチャールを作った。美味い。店主が白いアタあるよ？って聞いてきた。黒い方がいいと答えた。深い意味があるのだろうか。</p>
 <h1 id="section">4/28</h1>
 <p>最近の学生さんは学習エンジン自分達で書くんだな。すげー時代だ。わたしもなんか学習エンジン組んでみっかな。画像が概念と一致するかどうかの判定なわけだから・・・結果から考えれば例えばツツジはツツジと認識されてるから、ある程度可能なわけだ。予想。形を特徴量として、一致度を弾き出して、最も高い確率のものを採用してるんじゃないか←間違ってる可能性ある。metalで掘ってみるか。</p>
 <p>中国の人と話した。項羽ネタ行けるんじゃないだろうか。けっこーな確率で歴史わかんねーってなるんよな。竹内亮に会ったことがある、はいけるんじゃないか？・・・陳小濤の変面を歌うのがいいかもしれん。</p>
@@ -282,15 +292,8 @@ machineを歌った。</p>
 <p>干潟に行った。</p>
 <h1 id="section-3">4/25</h1>
 <p>マハーサシュトラの人と話した。ネパール語をやるのでそのうち話せるようになるかも。アチャールしか知らんけど。</p>
-<h1 id="最近作ってるもの">最近作ってるもの</h1>
-<p><a
-href="https://suno.com/s/qcNF5wDiE7b0jV2u">さんまは塩焼き（SUNOサイト）</a>
-https://main.vrfsm.pages.dev/?id=cf3df218-c923-4372-8da2-055870bbf33a <a
-href="https://main.vrfsm.pages.dev/?id=cf3df218-c923-4372-8da2-055870bbf33a">VR-FSM（VRサイト）</a>
-<a
-href="https://v-two-alpha.vercel.app/">小さな規則から生まれる秩序（VRサイト）</a>
-<a
-href="https://suno.com/s/2WIXyKkwqAXuIIzF">21世紀の精神分析射（SUNO）</a></p>
+</div>
+<div id="tab-likes" class="tab-pane">
 <h1 id="好き">好き</h1>
 <p>勅使河原蒼風 假屋崎省吾 公孙龙 鲁迅 老子 ニーチェ 野矢茂樹 落合陽一
 陆羽 丿貫 岡倉天心 ジェームス・ブラウン Audrey Tang フロイト ラカン
@@ -359,6 +362,18 @@ href="https://jmapps.ne.jp/apmoa/det.html?data_id=4106">福田恵一の大山守
 <h1 id="料理">料理</h1>
 <p>北インド料理 南インド料理 スリランカ料理 ネパール料理 四川菜 雲南菜
 タイ料理 ベトナム料理　ミャンマー家庭料理</p>
+</div>
+<div id="tab-works" class="tab-pane">
+<h1 id="最近作ってるもの">最近作ってるもの</h1>
+<p><a
+href="https://suno.com/s/qcNF5wDiE7b0jV2u">さんまは塩焼き（SUNOサイト）</a>
+https://main.vrfsm.pages.dev/?id=cf3df218-c923-4372-8da2-055870bbf33a <a
+href="https://main.vrfsm.pages.dev/?id=cf3df218-c923-4372-8da2-055870bbf33a">VR-FSM（VRサイト）</a>
+<a
+href="https://v-two-alpha.vercel.app/">小さな規則から生まれる秩序（VRサイト）</a>
+<a
+href="https://suno.com/s/2WIXyKkwqAXuIIzF">21世紀の精神分析射（SUNO）</a></p>
+</div>
   </main>
 </div>
 <style>
@@ -381,6 +396,20 @@ href="https://jmapps.ne.jp/apmoa/det.html?data_id=4106">福田恵一の大山守
 <div id="aporia-bg"></div>
 
 <script>
+(() => {
+  const links = document.querySelectorAll('.tab-link');
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const target = link.dataset.target;
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      links.forEach(l => l.classList.remove('active'));
+      document.getElementById(target).classList.add('active');
+      link.classList.add('active');
+    });
+  });
+})();
+
 (() => {
   // 各キーに対応する画像
   // 'a' は最初(0)と最後(1)で別の絵にできる

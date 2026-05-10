@@ -21,6 +21,20 @@
 
 <script>
 (() => {
+  const links = document.querySelectorAll('.tab-link');
+  links.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const target = link.dataset.target;
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      links.forEach(l => l.classList.remove('active'));
+      document.getElementById(target).classList.add('active');
+      link.classList.add('active');
+    });
+  });
+})();
+
+(() => {
   // 各キーに対応する画像
   // 'a' は最初(0)と最後(1)で別の絵にできる
   const images = {

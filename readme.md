@@ -1,7 +1,7 @@
 # コンテンツ化コマンド
 
 ``` mac
-pandoc 内容.md \
+pandoc top.md 出来事.md 好き.md 内容.md \
   -o index.html \
   --standalone \
   --include-in-header=frame-header.html \
@@ -12,7 +12,7 @@ pandoc 内容.md \
 ```
 
 ``` power shell
-pandoc 内容.md `
+pandoc top.md 出来事.md 好き.md 内容.md `
   -o index.html `
   --standalone `
   --include-in-header=frame-header.html `
@@ -29,6 +29,3 @@ git add .
 git commit -m "."
 git push
 ```
-
-
-
