@@ -175,33 +175,27 @@
 (() => {
   const canvas = document.getElementById('sandstorm');
   const ctx = canvas.getContext('2d');
-
   let W, H;
-  const resize = () => {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-  };
+  const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
   window.addEventListener('resize', resize);
   resize();
 
-  const rand  = (a, b) => a + Math.random() * (b - a);
-  const lerp  = (a, b, t) => a + (b - a) * t;
-  const ss    = t => t * t * (3 - 2 * t);
-  const sinW  = (ts, w) => Math.sin(ts / w.period * Math.PI * 2 + w.phase);
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const sinW = (ts, w) => Math.sin(ts / w.period * Math.PI * 2 + w.phase);
 
-  // ── Mode A: 砂嵐 ─────────────────────────────────────────
+  // ── Mode A ──────────────────────────────────────────────────────────────────
   const modeA = (() => {
-    const base  = { count: 3000, speed: 4, angle: 10, opacity: 20 };
+    const base  = { count: 1500, speed: 4, angle: 10, opacity: 20 };
     const waves = {
-      count:   { amp: 1800, period: 37, phase: 0   },
+      count:   { amp: 0,    period: 37, phase: 0   },
       speed:   { amp: 2.5,  period: 23, phase: 1.3 },
       angle:   { amp: 18,   period: 53, phase: 2.7 },
       opacity: { amp: 10,   period: 17, phase: 4.1 },
     };
     const HUES = [0, 130, 220];
     const make = () => ({
-      x: rand(-W * 0.1, W * 1.1), y: rand(0, H),
-      size: rand(0.5, 2.2), speed: rand(0.6, 1.4),
+      x: rand(-W*0.1, W*1.1), y: rand(0, H),
+      size: rand(5, 22), speed: rand(0.6, 1.4),
       drift: rand(-0.3, 0.3), alpha: rand(0.3, 1.0),
       len: rand(3, 14), frozenUntil: 0,
       freezeChance: rand(0.0005, 0.003),
@@ -214,6 +208,8 @@
       else ps.length = n;
     };
     return {
+      getPositions() { return ps.map(p => ({ x: p.x, y: p.y, ci: p.ci })); },
+      seedFrom(src) { ps = src.map(({x, y, ci}) => Object.assign(make(), {x, y, ci})); },
       init() { ps = Array.from({ length: base.count }, make); },
       tick(t, ts, alpha) {
         const count   = base.count   + sinW(ts, waves.count)   * waves.count.amp;
@@ -236,61 +232,46 @@
           if (t < p.frozenUntil) continue;
           if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
           p.x += vx * p.speed; p.y += vy * p.speed + p.drift;
-          if (p.x > W * 1.1 || p.y > H * 1.1 || p.y < -H * 0.1) {
-            Object.assign(p, make()); p.x = rand(-W * 0.1, 0); p.y = rand(0, H);
+          if (p.x > W*1.1 || p.y > H*1.1 || p.y < -H*0.1) {
+            Object.assign(p, make()); p.x = rand(-W*0.1, 0); p.y = rand(0, H);
           }
         }
       },
     };
   })();
 
-  // ── Mode B: 象徴 / カオス ────────────────────────────────
-  // R/G/B それぞれ異なる周波数で不規則運動。ラップアラウンド。
+  // ── Mode B ──────────────────────────────────────────────────────────────────
   const modeB = (() => {
     const HUES = [0, 130, 220];
-    // 色ごとに基本周波数スケールを変える（R速/G中/B遅）
     const FR_SCALE = [1.6, 1.0, 0.55];
-    const N = 700;
-
+    const N = 1500;
     const make = () => {
       const ci = Math.floor(Math.random() * 3);
       return {
-        x: rand(0, W), y: rand(0, H),
-        ci,
-        alpha: rand(0.4, 1.0),
-        size: rand(1.0, 3.2),
-        amp: rand(1.2, 3.8),
-        // 4つの独立した位相でカオスな軌道を生成
+        x: rand(0, W), y: rand(0, H), ci,
+        alpha: rand(0.4, 1.0), size: rand(10, 32), amp: rand(1.2, 3.8),
         ph: [rand(0,Math.PI*2), rand(0,Math.PI*2), rand(0,Math.PI*2), rand(0,Math.PI*2)],
-        fr: [rand(0.4, 1.1) * FR_SCALE[ci], rand(0.6, 1.4) * FR_SCALE[ci]],
-        frozenUntil: 0,
-        freezeChance: rand(0.002, 0.008),
+        fr: [rand(0.4, 1.1)*FR_SCALE[ci], rand(0.6, 1.4)*FR_SCALE[ci]],
+        frozenUntil: 0, freezeChance: rand(0.002, 0.008),
       };
     };
-
     let ps = [];
     return {
+      getPositions() { return ps.map(p => ({ x: p.x, y: p.y, ci: p.ci })); },
+      seedFrom(src) { ps = src.map(({x, y, ci}) => Object.assign(make(), {x, y, ci})); },
       init() { ps = Array.from({ length: N }, make); },
       tick(t, ts, alpha) {
         for (const p of ps) {
-          // 二つの正弦波の積 → 振幅変調されたカオス軌道
-          const vx = p.amp * Math.sin(ts * p.fr[0] + p.ph[0]) * Math.cos(ts * p.fr[1] * 0.7 + p.ph[1]);
-          const vy = p.amp * Math.cos(ts * p.fr[0] * 0.9 + p.ph[2]) * Math.sin(ts * p.fr[1] + p.ph[3]);
-
+          const vx = p.amp * Math.sin(ts*p.fr[0]+p.ph[0]) * Math.cos(ts*p.fr[1]*0.7+p.ph[1]);
+          const vy = p.amp * Math.cos(ts*p.fr[0]*0.9+p.ph[2]) * Math.sin(ts*p.fr[1]+p.ph[3]);
           ctx.save();
           ctx.globalAlpha = alpha * p.alpha;
           ctx.fillStyle = `hsl(${HUES[p.ci]},80%,52%)`;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
           ctx.restore();
-
           if (t < p.frozenUntil) continue;
           if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
-
-          p.x += vx;
-          p.y += vy;
-          // 画面端でラップ
+          p.x += vx; p.y += vy;
           if (p.x < 0) p.x += W; else if (p.x > W) p.x -= W;
           if (p.y < 0) p.y += H; else if (p.y > H) p.y -= H;
         }
@@ -298,61 +279,78 @@
     };
   })();
 
-  // ── Mode C: サントーム（ボロミアン環） ──────────────────────
-  // RSI の三環。どれか一つを外すと残りも解ける。
+  // ── Mode C ──────────────────────────────────────────────────────────────────
   const modeC = (() => {
-    // Real / Symbolique / Imaginaire それぞれに色相
-    const RING_DEFS = [
-      { hue:   0 },  // R: 赤
-      { hue: 130 },  // G: 緑
-      { hue: 220 },  // B: 青
-    ];
-    const PER_RING = 350;
-
+    const RING_DEFS = [{ hue: 0 }, { hue: 130 }, { hue: 220 }];
+    const PER_RING = 500;
     const makeP = () => ({
-      theta: rand(0, Math.PI * 2),
-      r: 1 + rand(-0.12, 0.12),      // 1 = 正円上、±0.12 の揺らぎ
+      theta: rand(0, Math.PI*2), r: 1 + rand(-0.12, 0.12),
       rV: rand(-0.0008, 0.0008),
       speed: rand(0.003, 0.009) * (Math.random() < 0.5 ? 1 : -1),
-      alpha: rand(0.35, 1.0),
-      size: rand(1.2, 2.8),
-      frozenUntil: 0,
-      freezeChance: rand(0.0002, 0.001),
+      alpha: rand(0.35, 1.0), size: rand(12, 28),
+      frozenUntil: 0, freezeChance: rand(0.0002, 0.001),
     });
-
-    let rings = [];
-    let globalRot = 0;
-
+    let rings = [], globalRot = 0;
+    const centers = () => {
+      const D = Math.min(W, H) * 0.17;
+      return [0,1,2].map(ri => {
+        const a = (ri/3)*Math.PI*2 - Math.PI/2 + globalRot;
+        return { cx: W/2 + Math.cos(a)*D, cy: H/2 + Math.sin(a)*D };
+      });
+    };
     return {
+      getState() { return { rings, globalRot }; },
+      getPositions() {
+        const R = Math.min(W, H) * 0.26;
+        const cs = centers();
+        const out = [];
+        for (let ri = 0; ri < 3; ri++) {
+          const {cx, cy} = cs[ri];
+          for (const p of rings[ri].ps)
+            out.push({ x: cx + Math.cos(p.theta)*R*p.r, y: cy + Math.sin(p.theta)*R*p.r, ci: ri });
+        }
+        return out;
+      },
+      seedFrom(src) {
+        const R = Math.min(W, H) * 0.26;
+        globalRot = 0;
+        const cs = centers();
+        rings = RING_DEFS.map((d, ri) => {
+          const {cx, cy} = cs[ri];
+          const pool = src.filter(p => p.ci === ri);
+          while (pool.length < PER_RING)
+            pool.push({ x: cx + rand(-R*0.5, R*0.5), y: cy + rand(-R*0.5, R*0.5), ci: ri });
+          return {
+            ...d,
+            ps: pool.slice(0, PER_RING).map(({x, y}) => {
+              const dx = x-cx, dy = y-cy, dist = Math.sqrt(dx*dx+dy*dy);
+              return Object.assign(makeP(), {
+                theta: Math.atan2(dy, dx),
+                r: dist > 0 ? Math.min(1.4, Math.max(0.6, dist/R)) : 1,
+              });
+            }),
+          };
+        });
+      },
       init() {
         rings = RING_DEFS.map(d => ({ ...d, ps: Array.from({ length: PER_RING }, makeP) }));
+        globalRot = 0;
       },
       tick(t, ts, alpha) {
-        globalRot += 0.00025 + 0.00015 * Math.sin(ts / 47);
-
-        // 画面中心から各環中心までの距離と環半径
-        const D = Math.min(W, H) * 0.17;
+        globalRot += 0.00025 + 0.00015 * Math.sin(ts/47);
         const R = Math.min(W, H) * 0.26;
-        const baseOp = (0.22 + 0.1 * Math.sin(ts / 31)) * alpha;
-
+        const baseOp = (0.22 + 0.1*Math.sin(ts/31)) * alpha;
+        const cs = centers();
         for (let ri = 0; ri < 3; ri++) {
-          const ring = rings[ri];
-          // 三角形配置: 120° ずつ
-          const ca = (ri / 3) * Math.PI * 2 - Math.PI / 2 + globalRot;
-          const cx = W / 2 + Math.cos(ca) * D;
-          const cy = H / 2 + Math.sin(ca) * D;
-
+          const ring = rings[ri], {cx, cy} = cs[ri];
           for (const p of ring.ps) {
-            const px = cx + Math.cos(p.theta) * R * p.r;
-            const py = cy + Math.sin(p.theta) * R * p.r;
+            const px = cx + Math.cos(p.theta)*R*p.r;
+            const py = cy + Math.sin(p.theta)*R*p.r;
             ctx.save();
             ctx.globalAlpha = baseOp * p.alpha;
             ctx.fillStyle = `hsl(${ring.hue},75%,55%)`;
-            ctx.beginPath();
-            ctx.arc(px, py, p.size, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI*2); ctx.fill();
             ctx.restore();
-
             if (t < p.frozenUntil) continue;
             if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
             p.theta += p.speed;
@@ -364,139 +362,117 @@
     };
   })();
 
-  // ── Mode AB: 解散（砂嵐が方向を失い散乱する） ───────────────
+  // ── Mode AB ─────────────────────────────────────────────────────────────────
   const modeAB = (() => {
-    const HUES = [0, 130, 220];
-    const N = 1200;
+    const HUES = [0, 130, 220]; const N = 1500;
     let ps = [], startTs = null;
     const make = () => ({
-      x: rand(-W*0.1, W*1.1), y: rand(0, H),
-      ci: Math.floor(Math.random() * 3),
-      size: rand(0.8, 2.5), speed: rand(0.5, 1.4),
-      drift: rand(-0.8, 0.8), alpha: rand(0.3, 1.0),
-      len: rand(2, 10), ph: rand(0, Math.PI * 2),
-      frozenUntil: 0, freezeChance: rand(0.001, 0.005),
+      x: rand(-W*0.1,W*1.1), y: rand(0,H), ci: Math.floor(Math.random()*3),
+      size: rand(8,25), speed: rand(0.5,1.4), drift: rand(-0.8,0.8),
+      alpha: rand(0.3,1.0), len: rand(2,10), ph: rand(0,Math.PI*2),
+      frozenUntil: 0, freezeChance: rand(0.001,0.005),
     });
     return {
-      init() { ps = Array.from({length: N}, make); startTs = null; },
+      getPositions() { return ps.map(p => ({ x: p.x, y: p.y, ci: p.ci })); },
+      seedFrom(src) { ps = src.map(({x, y, ci}) => Object.assign(make(), {x, y, ci})); startTs = null; },
+      init() { ps = Array.from({length:N}, make); startTs = null; },
       tick(t, ts, alpha) {
-        if (startTs === null) startTs = ts;
-        const prog = Math.min(1, (ts - startTs) / 5);
-        const baseAngle = 10 + prog * 160 * Math.sin(ts * 1.5 + 0.5);
-        const baseSpeed = 4 * (1 - prog * 0.65);
-        const rad = baseAngle * Math.PI / 180;
-        const vxB = Math.cos(rad) * baseSpeed, vyB = Math.sin(rad) * baseSpeed;
+        if (startTs===null) startTs=ts;
+        const prog = Math.min(1,(ts-startTs)/5);
+        const baseAngle = 10 + prog*160*Math.sin(ts*1.5+0.5);
+        const baseSpeed = 4*(1-prog*0.65);
+        const rad=baseAngle*Math.PI/180;
+        const vxB=Math.cos(rad)*baseSpeed, vyB=Math.sin(rad)*baseSpeed;
         for (const p of ps) {
-          const ca = prog * 3;
-          const vx = vxB + ca * Math.sin(ts * 1.1 + p.ph);
-          const vy = vyB + ca * Math.cos(ts * 0.8 + p.ph);
-          ctx.save();
-          ctx.globalAlpha = alpha * p.alpha;
-          ctx.strokeStyle = `hsl(${HUES[p.ci]},80%,48%)`;
-          ctx.lineWidth = p.size; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x - vx * p.len * 0.3, p.y - vy * p.len * 0.3);
+          const ca=prog*3;
+          const vx=vxB+ca*Math.sin(ts*1.1+p.ph), vy=vyB+ca*Math.cos(ts*0.8+p.ph);
+          ctx.save(); ctx.globalAlpha=alpha*p.alpha;
+          ctx.strokeStyle=`hsl(${HUES[p.ci]},80%,48%)`; ctx.lineWidth=p.size; ctx.lineCap='round';
+          ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x-vx*p.len*0.3,p.y-vy*p.len*0.3);
           ctx.stroke(); ctx.restore();
-          if (t < p.frozenUntil) continue;
-          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
-          p.x += vx * p.speed; p.y += vy * p.speed + p.drift * (1 + prog);
-          if (p.x > W*1.2 || p.x < -W*0.2 || p.y > H*1.2 || p.y < -H*0.2) {
-            Object.assign(p, make()); p.x = rand(-W*0.1, 0); p.y = rand(0, H);
-          }
+          if (t<p.frozenUntil) continue;
+          if (Math.random()<p.freezeChance){p.frozenUntil=t+500;continue;}
+          p.x+=vx*p.speed; p.y+=vy*p.speed+p.drift*(1+prog);
+          if (p.x>W*1.2||p.x<-W*0.2||p.y>H*1.2||p.y<-H*0.2){Object.assign(p,make());p.x=rand(-W*0.1,0);p.y=rand(0,H);}
         }
       },
     };
   })();
 
-  // ── Mode BC: 凝集（カオスが色ごとに集まり始める） ──────────
+  // ── Mode BC ─────────────────────────────────────────────────────────────────
   const modeBC = (() => {
-    const HUES = [0, 130, 220];
-    const FR_SCALE = [1.6, 1.0, 0.55];
-    const ATT = [[-0.2,-0.12],[0.2,-0.12],[0.0,0.18]]; // 3色の収束先（画面中心からの比率）
-    const N = 700;
-    let ps = [], startTs = null;
-    const make = () => {
-      const ci = Math.floor(Math.random() * 3);
-      return {
-        x: rand(0, W), y: rand(0, H), ci,
-        alpha: rand(0.4, 1.0), size: rand(1.0, 3.2), amp: rand(1.2, 3.8),
-        ph: [rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2)],
-        fr: [rand(0.4,1.1)*FR_SCALE[ci], rand(0.6,1.4)*FR_SCALE[ci]],
-        frozenUntil: 0, freezeChance: rand(0.002, 0.006),
-      };
-    };
+    const HUES=[0,130,220], FR_SCALE=[1.6,1.0,0.55];
+    const ATT=[[-0.2,-0.12],[0.2,-0.12],[0.0,0.18]];
+    const N=1500; let ps=[], startTs=null;
+    const make = () => { const ci=Math.floor(Math.random()*3); return {
+      x:rand(0,W),y:rand(0,H),ci,alpha:rand(0.4,1.0),size:rand(1.0,3.2),amp:rand(1.2,3.8),
+      ph:[rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2)],
+      fr:[rand(0.4,1.1)*FR_SCALE[ci],rand(0.6,1.4)*FR_SCALE[ci]],
+      frozenUntil:0,freezeChance:rand(0.002,0.006),
+    };};
     return {
-      init() { ps = Array.from({length: N}, make); startTs = null; },
-      tick(t, ts, alpha) {
-        if (startTs === null) startTs = ts;
-        const prog = Math.min(1, (ts - startTs) / 5);
-        const att = prog * prog * 0.07;
+      getPositions() { return ps.map(p => ({ x: p.x, y: p.y, ci: p.ci })); },
+      seedFrom(src) { ps = src.map(({x, y, ci}) => Object.assign(make(), {x, y, ci})); startTs = null; },
+      init() { ps=Array.from({length:N},make); startTs=null; },
+      tick(t,ts,alpha) {
+        if (startTs===null) startTs=ts;
+        const prog=Math.min(1,(ts-startTs)/5), att=prog*prog*0.07;
         for (const p of ps) {
-          const scale = 1 - prog * 0.75;
-          const vx = p.amp * scale * Math.sin(ts*p.fr[0]+p.ph[0]) * Math.cos(ts*p.fr[1]*0.7+p.ph[1]);
-          const vy = p.amp * scale * Math.cos(ts*p.fr[0]*0.9+p.ph[2]) * Math.sin(ts*p.fr[1]+p.ph[3]);
-          const ax = (W/2 + ATT[p.ci][0]*W - p.x) * att;
-          const ay = (H/2 + ATT[p.ci][1]*H - p.y) * att;
-          ctx.save();
-          ctx.globalAlpha = alpha * p.alpha;
-          ctx.fillStyle = `hsl(${HUES[p.ci]},80%,52%)`;
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
-          ctx.restore();
-          if (t < p.frozenUntil) continue;
-          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
-          p.x += vx + ax; p.y += vy + ay;
-          if (p.x < 0) p.x += W; else if (p.x > W) p.x -= W;
-          if (p.y < 0) p.y += H; else if (p.y > H) p.y -= H;
+          const sc=1-prog*0.75;
+          const vx=p.amp*sc*Math.sin(ts*p.fr[0]+p.ph[0])*Math.cos(ts*p.fr[1]*0.7+p.ph[1]);
+          const vy=p.amp*sc*Math.cos(ts*p.fr[0]*0.9+p.ph[2])*Math.sin(ts*p.fr[1]+p.ph[3]);
+          const ax=(W/2+ATT[p.ci][0]*W-p.x)*att, ay=(H/2+ATT[p.ci][1]*H-p.y)*att;
+          ctx.save(); ctx.globalAlpha=alpha*p.alpha;
+          ctx.fillStyle=`hsl(${HUES[p.ci]},80%,52%)`;
+          ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.restore();
+          if (t<p.frozenUntil) continue;
+          if (Math.random()<p.freezeChance){p.frozenUntil=t+500;continue;}
+          p.x+=vx+ax; p.y+=vy+ay;
+          if (p.x<0) p.x+=W; else if (p.x>W) p.x-=W;
+          if (p.y<0) p.y+=H; else if (p.y>H) p.y-=H;
         }
       },
     };
   })();
 
-  // ── Mode CA: 解放（輪が加速・膨張して砂嵐へ戻る） ──────────
+  // ── Mode CA ─────────────────────────────────────────────────────────────────
   const modeCA = (() => {
-    const RING_DEFS = [{hue:0},{hue:130},{hue:220}];
-    const PER_RING = 350;
-    const makeP = () => ({
-      theta: rand(0, Math.PI*2), r: 1+rand(-0.12,0.12),
-      speed: rand(0.003,0.009)*(Math.random()<0.5?1:-1),
-      alpha: rand(0.35,1.0), size: rand(1.2,2.8),
-      frozenUntil: 0, freezeChance: rand(0.0002,0.001),
-    });
-    let rings = [], startTs = null, globalRot = 0;
+    const RING_DEFS=[{hue:0},{hue:130},{hue:220}], PER_RING=500;
+    const makeP=()=>({theta:rand(0,Math.PI*2),r:1+rand(-0.12,0.12),
+      speed:rand(0.003,0.009)*(Math.random()<0.5?1:-1),
+      alpha:rand(0.35,1.0),size:rand(1.2,2.8),frozenUntil:0,freezeChance:rand(0.0002,0.001)});
+    let rings=[],startTs=null,globalRot=0;
     return {
-      init() {
-        rings = RING_DEFS.map(d => ({...d, ps: Array.from({length: PER_RING}, makeP)}));
-        startTs = null; globalRot = 0;
+      seedFrom({ rings: srcRings, globalRot: srcRot }) {
+        rings = srcRings.map(ring => ({ ...ring, ps: ring.ps.map(p => ({ ...p })) }));
+        globalRot = srcRot;
+        startTs = null;
       },
-      tick(t, ts, alpha) {
-        if (startTs === null) startTs = ts;
-        const prog = Math.min(1, (ts - startTs) / 5);
-        globalRot += 0.00025 + prog * 0.003;
-        const D = Math.min(W,H) * 0.17;
-        const R = Math.min(W,H) * (0.26 + prog * 0.22);
-        const baseOp = (0.22 + 0.1*Math.sin(ts/31)) * alpha * (1 - prog * 0.6);
-        for (let ri = 0; ri < 3; ri++) {
-          const ring = rings[ri];
-          const ca = (ri/3)*Math.PI*2 - Math.PI/2 + globalRot;
-          const cx = W/2 + Math.cos(ca)*D, cy = H/2 + Math.sin(ca)*D;
+      init() { rings=RING_DEFS.map(d=>({...d,ps:Array.from({length:PER_RING},makeP)})); startTs=null; globalRot=0; },
+      tick(t,ts,alpha) {
+        if (startTs===null) startTs=ts;
+        const prog=Math.min(1,(ts-startTs)/5);
+        globalRot+=0.00025+prog*0.003;
+        const D=Math.min(W,H)*0.17, R=Math.min(W,H)*(0.26+prog*0.22);
+        const baseOp=(0.22+0.1*Math.sin(ts/31))*alpha*(1-prog*0.6);
+        for (let ri=0;ri<3;ri++) {
+          const ring=rings[ri], ca=(ri/3)*Math.PI*2-Math.PI/2+globalRot;
+          const cx=W/2+Math.cos(ca)*D, cy=H/2+Math.sin(ca)*D;
           for (const p of ring.ps) {
-            const px = cx + Math.cos(p.theta)*R*p.r;
-            const py = cy + Math.sin(p.theta)*R*p.r;
-            ctx.save();
-            ctx.globalAlpha = baseOp * p.alpha;
-            ctx.fillStyle = `hsl(${ring.hue},75%,55%)`;
-            ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
-            if (t < p.frozenUntil) continue;
-            if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
-            p.theta += p.speed * (1 + prog * 5);
+            const px=cx+Math.cos(p.theta)*R*p.r, py=cy+Math.sin(p.theta)*R*p.r;
+            ctx.save(); ctx.globalAlpha=baseOp*p.alpha;
+            ctx.fillStyle=`hsl(${ring.hue},75%,55%)`;
+            ctx.beginPath(); ctx.arc(px,py,p.size,0,Math.PI*2); ctx.fill(); ctx.restore();
+            if (t<p.frozenUntil) continue;
+            if (Math.random()<p.freezeChance){p.frozenUntil=t+500;continue;}
+            p.theta+=p.speed*(1+prog*5);
           }
         }
       },
     };
   })();
 
-  // ── スケジュール管理 ─────────────────────────────────────
+  // ── スケジュール管理 ─────────────────────────────────────────────────────────
   const SCHEDULE = [
     { key: 'A',  dur: 25000 },
     { key: 'AB', dur:  5000 },
@@ -509,29 +485,37 @@
   const CUM = (() => { let a = 0; return SCHEDULE.map(m => { const c = a; a += m.dur; return c; }); })();
   const MODE_MAP = { A: modeA, AB: modeAB, B: modeB, BC: modeBC, C: modeC, CA: modeCA };
 
-  modeA.init(); modeAB.init(); modeB.init(); modeBC.init(); modeC.init(); modeCA.init();
+  Object.values(MODE_MAP).forEach(m => m.init());
 
-  let startTime = null;
+  let startTime = null, prevKey = null;
   const indicator = document.getElementById('mode-indicator');
 
   const tick = t => {
     if (startTime === null) startTime = t;
-    const elapsed    = t - startTime;
-    const ts         = t / 1000;
-    const cycleTime  = elapsed % TOTAL_DUR;
+    const elapsed = t - startTime, ts = t / 1000;
+    const cycleTime = elapsed % TOTAL_DUR;
     let si = 0;
     for (let i = SCHEDULE.length - 1; i >= 0; i--) {
       if (cycleTime >= CUM[i]) { si = i; break; }
     }
-    const entry      = SCHEDULE[si];
-    const timeInMode = cycleTime - CUM[si];
-
+    const entry = SCHEDULE[si], timeInMode = cycleTime - CUM[si];
     if (indicator) indicator.textContent = entry.key;
     window._fsmState = { key: entry.key, timeInMode, dur: entry.dur };
 
+    if (entry.key !== prevKey) {
+      const prev = prevKey ? MODE_MAP[prevKey] : null;
+      const cur  = MODE_MAP[entry.key];
+      if      (entry.key === 'CA' && prev?.getState)
+        cur.seedFrom(prev.getState());
+      else if (prev?.getPositions && cur.seedFrom)
+        cur.seedFrom(prev.getPositions());
+      else
+        cur.init();
+      prevKey = entry.key;
+    }
+
     ctx.clearRect(0, 0, W, H);
     MODE_MAP[entry.key].tick(t, ts, 1);
-
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
