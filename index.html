@@ -170,8 +170,256 @@
     }
     .display.math{display: block; text-align: center; margin: 0.5rem auto;}
   </style>
+  <style>
+    html, body {
+      background: #000 !important;
+      color: #ccc !important;
+    }
+    body {
+      margin: 0;
+      max-width: none;
+      padding: 0;
+    }
+    a { color: #aaa !important; }
+    a:visited { color: #888 !important; }
+    .layout {
+      display: flex;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .left-pane {
+      width: 140px;
+      flex-shrink: 0;
+      padding: 50px 20px 50px 30px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+      box-sizing: border-box;
+    }
+    .left-pane ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .left-pane li {
+      margin: 0.8em 0;
+    }
+    .left-pane a {
+      text-decoration: none;
+      color: #aaa !important;
+    }
+    .left-pane a:hover {
+      text-decoration: underline;
+    }
+    .right-pane {
+      flex: 1;
+      max-width: 36em;
+      padding: 50px;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .left-pane a.active { font-weight: bold; }
+    #sandstorm {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    #fsm-wrap {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+    @media (max-width: 600px) {
+      .layout {
+        flex-direction: column;
+      }
+      .left-pane {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid #333;
+        padding: 20px;
+      }
+      .left-pane ul {
+        display: flex;
+        gap: 1.5em;
+      }
+      .right-pane {
+        padding: 20px;
+      }
+    }
+  </style>
 </head>
 <body>
+<canvas id="sandstorm"></canvas>
+
+<div id="fsm-wrap">
+  <svg id="fsm-svg" viewBox="0 0 200 215" width="140" height="151">
+    <defs>
+      <marker id="farr" viewBox="0 0 8 8" refX="7" refY="4"
+        markerWidth="5" markerHeight="5" orient="auto">
+        <polygon points="0,0 8,4 0,8" fill="#444"/>
+      </marker>
+    </defs>
+    <path id="farr-AB" d="M 92 47 Q 50 90 37 150" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path id="farr-BC" d="M 47 168 Q 100 184 153 168" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path id="farr-CA" d="M 163 150 Q 150 90 108 47" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <circle id="parc-A" cx="100" cy="32"  r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8" stroke-dasharray="0 144.5" transform="rotate(-90 100 32)"  stroke-linecap="round"/>
+    <circle id="parc-B" cx="30"  cy="168" r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8" stroke-dasharray="0 144.5" transform="rotate(-90 30 168)"  stroke-linecap="round"/>
+    <circle id="parc-C" cx="170" cy="168" r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8" stroke-dasharray="0 144.5" transform="rotate(-90 170 168)" stroke-linecap="round"/>
+    <circle id="fnode-A" cx="100" cy="32"  r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+    <circle id="fnode-B" cx="30"  cy="168" r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+    <circle id="fnode-C" cx="170" cy="168" r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+    <text id="flbl-A" x="100" y="59" text-anchor="middle" fill="#484848" font-size="7.5" font-family="serif">
+      <tspan x="100" dy="0">under-</tspan><tspan x="100" dy="9">construction</tspan>
+    </text>
+    <text id="flbl-B" x="30"  y="196" text-anchor="middle" fill="#484848" font-size="9" font-family="serif">象徴</text>
+    <text id="flbl-C" x="170" y="194" text-anchor="middle" fill="#484848" font-size="8" font-family="serif">サントーム</text>
+  </svg>
+</div>
+
+<div class="layout">
+  <nav class="left-pane">
+    <ul>
+      <li><a href="#" class="tab-link active" data-target="tab-top">top</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-events">出来事</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-likes">好き</a></li>
+      <li><a href="#" class="tab-link" data-target="tab-works">制作</a></li>
+    </ul>
+  </nav>
+  <main class="right-pane">
+<div id="tab-top" class="tab-pane active">
+
+</div>
+<div id="tab-events" class="tab-pane">
+<h1 id="火">5.12 火</h1>
+<p>揚輝荘に行った。大した画家だよ祐民さんは。帰りに不老園に行き書の謎を解いた。店主は「知らなかったです」と。気分はハンマーカンマーだがまあ・・・その・・・伏せておこう。茶会として成立させる書など久しいのではあるまいか。</p>
+<figure>
+<img src="./祐民.jpg" alt="15代伊藤次郎左衛門祐民" />
+<figcaption aria-hidden="true">15代伊藤次郎左衛門祐民</figcaption>
+</figure>
+<h1 id="月">5/11 月</h1>
+<p>OSは割と順調に進みつつある。x86とarm並行で進めている。RISC-Vも視野に入れるかどうか。</p>
+<h1 id="日">5/10 日</h1>
+<p>パキスタン料理店でマトンパラクとロティとマンゴージュースを頂いた。非常に美味い。VRCで平和とは具体的に観測可能な日常であって万人による万人への戦争（を防ぐための暴力としての法と暴力云々）ではないという話があり、わたしはそれを肯定可能である。具体的には政権は道具であって目的ではないという態度になると思わしい。</p>
+<h1 id="土">5/9 土</h1>
+<p>水張りに再トライ。今度は成功。</p>
+<h1 id="金">5/8 金</h1>
+<p>スキレットを買った。育てていこうと思う。ドラヴィダは深いというか、ミリンダ王問経とつながってたりするのでビビる。と思いながらTAPAL
+DANEDARでチャイをいれた。</p>
+<h1 id="木">5/7 木</h1>
+<p>熱田神宮に行った。荒巾木像があったのでスケッチ。昔から不思議な形と思っていた。良く見ると泣いてるし、手足を切られた人間の像に見えてきた。ひさしぶりにギターの弦を張り替えた。１２フレットがズレてるのでコマで調整しようと思う。</p>
+<h1 id="水">5/6 水</h1>
+<p>パキスタンというかハラル食材店に行って色々買った。入る時扉が開いていたのでお会計をしてから「閉めたほうがいいですか？」と言ったら？という顔をしていたのでShould
+I close it?と聞いて互いにThank
+youと言った。ローズウォーターを買ったので、マキネッタに添えた。知らない味がした。</p>
+<h1 id="火-1">5/5 火</h1>
+<p>電車がすしづめだったので、徒歩を選んだ。文脈なき芸術とは何か、という命題を立てた。現前である、と置いた。Claudeが現前とはと問うので、主に地面と空と答えた。久しぶりに絵を描くので水張りをしてい・・・たら破れた。が、構わず続行。張れるか検証する。ギターの１２フレットが合わないのでとりあえず弦を変えることにする。おそらく弦高調整が要る。VRCでノースカロライナ人とsex
+machineを歌った。</p>
+<h1 id="月-1">5/4 月</h1>
+<p>朝、薔薇の香りを浴びる。ジャガビーでエスプレッソを飲む。
+おちょぼ稲荷に連れて行ってもらった。帰りに美術品の展示をやっていたので見ていたのだが非常に良い。美術品の基準とは何か、となったので、その時は答えを保留にしたが、情報量またはエントロピーで定義できると思う。であれば明らかに美術品外も含まれるじゃないか、と思われるかも知れない。cpersonaを試すもうまく動かない。zennだけ買うか。。。</p>
+<h1 id="日-1">5/3 日</h1>
+<p>ミャンマーフェスに行った。1000人くらいいたんじゃないかな。わたしは平気で混じるのだが、あんまり日本人がいない。面白いと思うんだけどな。VRCではレンブラント好きな人がいた。</p>
+<h1 id="土-1">5/2 土</h1>
+<p>今度野点をしようと思い、お菓子屋さんに和三盆を仕入れつつ勉強がてら和菓子とお抹茶をいただいた。最近のお菓子屋さんは攻めてて良い。</p>
+<h1 id="金-1">5/1 金</h1>
+<p>電ドラとサックスを吹いた。サックスは初めて。楽しい。最近はVRCでキャッチボールをしている。オタマトーンガチ勢がいた。</p>
+<h1 id="木-1">4/30 - 木</h1>
+<p>ネパール産アタとスリランカ産クミン、マスタードシードとマスタードオイルを手に入れた。チャパティとダルカレー、アチャールを作った。美味い。店主が白いアタあるよ？って聞いてきた。黒い方がいいと答えた。深い意味があるのだろうか。</p>
+<h1 id="section">4/28</h1>
+<p>最近の学生さんは学習エンジン自分達で書くんだな。すげー時代だ。わたしもなんか学習エンジン組んでみっかな。画像が概念と一致するかどうかの判定なわけだから・・・結果から考えれば例えばツツジはツツジと認識されてるから、ある程度可能なわけだ。予想。形を特徴量として、一致度を弾き出して、最も高い確率のものを採用してるんじゃないか←間違ってる可能性ある。metalで掘ってみるか。</p>
+<p>中国の人と話した。項羽ネタ行けるんじゃないだろうか。けっこーな確率で歴史わかんねーってなるんよな。竹内亮に会ったことがある、はいけるんじゃないか？・・・陳小濤の変面を歌うのがいいかもしれん。</p>
+<p>機械学習の記述法は圏がよさげ。</p>
+<h1 id="section-1">4/27</h1>
+<p>ウクレレでライディーンを弾いてもらった。うそやん😂
+広東語を教えてもらった。今日係幾月幾號？
+ノルウェー人とおジャ魔女どれみを歌った。不思議な力が沸いたら何をしよう。鳥とか魚と話したい。でも鳥はまじで話せる人いるんだよな。</p>
+<h1 id="section-2">4/26</h1>
+<p>干潟に行った。</p>
+<h1 id="section-3">4/25</h1>
+<p>マハーサシュトラの人と話した。ネパール語をやるのでそのうち話せるようになるかも。アチャールしか知らんけど。</p>
+</div>
+<div id="tab-likes" class="tab-pane">
+<h1 id="好き">好き</h1>
+<p>勅使河原蒼風 假屋崎省吾 公孙龙 鲁迅 老子 ニーチェ 野矢茂樹 落合陽一
+陆羽 丿貫 岡倉天心 ジェームス・ブラウン Audrey Tang フロイト ラカン
+坂口安吾 ウスタッド・ザキール・フセイン アララカ ムッシュかまやつ
+川上音二郎 和嶋慎治 だいじろー 水野太貴 项羽 サラディン 矢野顕子 Macy
+Gray 東浩紀 オードリー・タン 滅多刺しひろくん</p>
+<h1 id="漫画">漫画</h1>
+<p>サンキューピッチ 極道主夫 オークション・ハウス 首斬り朝
+本田鹿の子の本棚 ボボボーボ・ボーボボ らーめん再遊記</p>
+<h1 id="動画">動画</h1>
+<p>疲れた犬のアニメ <a
+href="https://www.youtube.com/watch?v=6dZxB4gGKQ4">ザコシ</a> 落合陽一
+東浩紀 アムボムッレ・スマナサーラ 鳥人間中国史三昧
+ウンチ・アツメウリ</p>
+<h1 id="行ったことのある中国">行ったことのある中国</h1>
+<p>四川</p>
+<h1 id="落合陽一">落合陽一</h1>
+<p>コオロギとブレッドボード
+フェムト秒レーザーって欲しいじゃないですかって話 華厳
+歩きながらレトルトカレーをストローで食う話 <a
+href="https://www.youtube.com/watch?v=hFT8er17yS4">養老孟司との対話</a></p>
+<h1 id="ムッシュかまやつ">ムッシュかまやつ</h1>
+<p><a
+href="https://www.youtube.com/watch?v=6vemcjGhUPU&amp;list=RD6vemcjGhUPU&amp;start_radio=1">ゴロワーズというタバコを知っているかい？</a></p>
+<h1 id="命題">命題</h1>
+<p>白馬は馬ではない、って可能か？可能。</p>
+<h1 id="押井守">押井守</h1>
+<p>攻殻機動隊 立食師列伝</p>
+<h1 id="千葉茂">千葉茂</h1>
+<p>北斗の拳の次回予告 ラディッツ 立ち食いそばの店員</p>
+<h1 id="王騎">王騎</h1>
+<p>大沢たかお</p>
+<h1 id="矢野顕子">矢野顕子</h1>
+<p>ごはんができたよ</p>
+<h1 id="we-will-rock-you">We will rock you</h1>
+<p>Macy Gray</p>
+<h1 id="論法">論法</h1>
+<p>プラサンガ 詭弁 帰謬法 構成論理</p>
+<h1 id="苦手な論理">苦手な論理</h1>
+<p>素朴に全体を前提する形式論理</p>
+<h1 id="悪魔祓い">悪魔祓い</h1>
+<p>スリランカ方式</p>
+<h1 id="ザコシ">ザコシ</h1>
+<p>ハンマーカンマー カキンカキン節</p>
+<h1 id="武将">武将</h1>
+<p>サラディン ウェルキンゲトリクス 項羽</p>
+<h1 id="考えた帰謬法">考えた帰謬法</h1>
+<p>右そのものを物質化すると、それに左が含まれる</p>
+<h1 id="水滸伝">水滸伝</h1>
+<p>武松 林冲 藩金蓮 魯智深 王進</p>
+<h1 id="たまに歌う">たまに歌う</h1>
+<p><a
+href="https://www.youtube.com/watch?v=8TuMWzJd6RM&amp;list=RD8TuMWzJd6RM&amp;start_radio=1">おっぺけぺー</a></p>
+<h1 id="つか犬">つか犬</h1>
+<p>クロミ 猫西 チャイナドラゴン メリーさん</p>
+<h1 id="絵">絵</h1>
+<p><a
+href="https://jmapps.ne.jp/apmoa/det.html?data_id=4106">福田恵一の大山守</a></p>
+<h1 id="ゲーム">ゲーム</h1>
+<p>ストツー スト５ ファイナルファンタジー８ 女神転生2, 真女神転生,
+真女神転生II, 真女神転生4 ペーパーマン（テリシア派）</p>
+<h1 id="趣味">趣味</h1>
+<p>お茶 お花</p>
+<h1 id="書物">書物</h1>
+<p>マハーバーラタ</p>
+<h1 id="料理">料理</h1>
+<p>北インド料理 南インド料理 スリランカ料理 ネパール料理 四川菜 雲南菜
+タイ料理 ベトナム料理　ミャンマー家庭料理</p>
+</div>
 <div id="tab-works" class="tab-pane">
 <h1 id="最近作ってるもの">最近作ってるもの</h1>
 <p><a
