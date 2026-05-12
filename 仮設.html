@@ -51,6 +51,24 @@
     position: relative;
     z-index: 1;
   }
+  #mode-indicator {
+    position: fixed;
+    bottom: 16px;
+    right: 20px;
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 0.1em;
+    z-index: 10;
+    pointer-events: none;
+  }
+  #fsm-wrap {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0.85;
+  }
   #sandstorm {
     position: fixed;
     inset: 0;
@@ -95,6 +113,48 @@
 <body>
 
 <canvas id="sandstorm"></canvas>
+<div id="mode-indicator">A</div>
+
+<div id="fsm-wrap">
+  <!--
+    Node centers: A=(100,32)  B=(30,168)  C=(170,168)  r=18
+    Progress arc r=23, circumference≈144.5
+    Arrows curve outward from triangle centroid (100,123)
+  -->
+  <svg id="fsm-svg" viewBox="0 0 200 215" width="140" height="151">
+    <defs>
+      <marker id="farr" viewBox="0 0 8 8" refX="7" refY="4"
+        markerWidth="5" markerHeight="5" orient="auto">
+        <polygon points="0,0 8,4 0,8" fill="#444"/>
+      </marker>
+    </defs>
+
+    <!-- transition arrows (outward curve) -->
+    <path d="M 92 47 Q 50 90 37 150" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path d="M 47 168 Q 100 184 153 168" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path d="M 163 150 Q 150 90 108 47" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+
+    <!-- progress arcs (driven by JS) -->
+    <circle id="parc-A" cx="100" cy="32"  r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8"
+      stroke-dasharray="0 144.5" transform="rotate(-90 100 32)"  stroke-linecap="round"/>
+    <circle id="parc-B" cx="30"  cy="168" r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8"
+      stroke-dasharray="0 144.5" transform="rotate(-90 30 168)"  stroke-linecap="round"/>
+    <circle id="parc-C" cx="170" cy="168" r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8"
+      stroke-dasharray="0 144.5" transform="rotate(-90 170 168)" stroke-linecap="round"/>
+
+    <!-- nodes -->
+    <circle id="fnode-A" cx="100" cy="32"  r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+    <circle id="fnode-B" cx="30"  cy="168" r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+    <circle id="fnode-C" cx="170" cy="168" r="18" fill="#080808" stroke="#383838" stroke-width="1.5"/>
+
+    <!-- labels -->
+    <text id="flbl-A" x="100" y="59" text-anchor="middle" fill="#484848" font-size="7.5" font-family="serif">
+      <tspan x="100" dy="0">under-</tspan><tspan x="100" dy="9">construction</tspan>
+    </text>
+    <text id="flbl-B" x="30"  y="196" text-anchor="middle" fill="#484848" font-size="9" font-family="serif">象徴</text>
+    <text id="flbl-C" x="170" y="194" text-anchor="middle" fill="#484848" font-size="8" font-family="serif">サントーム</text>
+  </svg>
+</div>
 
 <div class="layout">
   <nav class="left-pane">
@@ -124,97 +184,282 @@
   window.addEventListener('resize', resize);
   resize();
 
-  // sin アニメーションの基底パラメータ（中心値）
-  const base = {
-    count:   3000,
-    speed:   4,
-    angle:   10,
-    opacity: 20,
-  };
+  const rand  = (a, b) => a + Math.random() * (b - a);
+  const lerp  = (a, b, t) => a + (b - a) * t;
+  const ss    = t => t * t * (3 - 2 * t);
+  const sinW  = (ts, w) => Math.sin(ts / w.period * Math.PI * 2 + w.phase);
 
-  // 各パラメータを揺らす sin の設定：振幅・周期（秒）・位相オフセット（rad）
-  const waves = {
-    count:   { amp: 1800, period: 37, phase: 0 },
-    speed:   { amp: 2.5, period: 23, phase: 1.3 },
-    angle:   { amp: 18,  period: 53, phase: 2.7 },
-    opacity: { amp: 10,  period: 17, phase: 4.1 },
-  };
+  // ── Mode A: 砂嵐 ─────────────────────────────────────────
+  const modeA = (() => {
+    const base  = { count: 3000, speed: 4, angle: 10, opacity: 20 };
+    const waves = {
+      count:   { amp: 1800, period: 37, phase: 0   },
+      speed:   { amp: 2.5,  period: 23, phase: 1.3 },
+      angle:   { amp: 18,   period: 53, phase: 2.7 },
+      opacity: { amp: 10,   period: 17, phase: 4.1 },
+    };
+    const make = () => ({
+      x: rand(-W * 0.1, W * 1.1), y: rand(0, H),
+      size: rand(0.5, 2.2), speed: rand(0.6, 1.4),
+      drift: rand(-0.3, 0.3), alpha: rand(0.3, 1.0),
+      len: rand(3, 14), frozenUntil: 0,
+      freezeChance: rand(0.0005, 0.003),
+    });
+    let ps = [];
+    const setN = n => {
+      n = Math.round(n);
+      if (n > ps.length) while (ps.length < n) ps.push(make());
+      else ps.length = n;
+    };
+    return {
+      init() { ps = Array.from({ length: base.count }, make); },
+      tick(t, ts, alpha) {
+        const count   = base.count   + sinW(ts, waves.count)   * waves.count.amp;
+        const speed   = base.speed   + sinW(ts, waves.speed)   * waves.speed.amp;
+        const angle   = base.angle   + sinW(ts, waves.angle)   * waves.angle.amp;
+        const opacity = base.opacity + sinW(ts, waves.opacity) * waves.opacity.amp;
+        setN(count);
+        const rad = angle * Math.PI / 180;
+        const vx = Math.cos(rad) * speed, vy = Math.sin(rad) * speed;
+        const ba = Math.max(0.02, opacity / 100) * alpha;
+        for (const p of ps) {
+          ctx.save();
+          ctx.globalAlpha = ba * p.alpha;
+          ctx.strokeStyle = 'hsl(130,80%,45%)';
+          ctx.lineWidth = p.size; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - vx * p.len * 0.3, p.y - vy * p.len * 0.3);
+          ctx.stroke(); ctx.restore();
+          if (t < p.frozenUntil) continue;
+          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+          p.x += vx * p.speed; p.y += vy * p.speed + p.drift;
+          if (p.x > W * 1.1 || p.y > H * 1.1 || p.y < -H * 0.1) {
+            Object.assign(p, make()); p.x = rand(-W * 0.1, 0); p.y = rand(0, H);
+          }
+        }
+      },
+    };
+  })();
 
-  let particles = [];
-  let lastCount = base.count;
+  // ── Mode B: アポリアへの収束 ──────────────────────────────
+  // 点群が「アポリア」というカタカナの形に引き寄せられる。
+  // 0s: 散乱 → 15s: 完全収束 → 30s: 散乱（Cへ移行）
+  const modeB = (() => {
+    let ps = [];
+    let startTs = null;
+    let sampled = false;
 
-  const rand = (a, b) => a + Math.random() * (b - a);
+    const sample = () => {
+      const oc = document.createElement('canvas');
+      oc.width = W; oc.height = H;
+      const oc2 = oc.getContext('2d');
+      const fs = Math.min(W / 6, H / 3);
+      oc2.fillStyle = '#fff';
+      oc2.font = `bold ${fs}px serif`;
+      oc2.textAlign = 'center';
+      oc2.textBaseline = 'middle';
+      oc2.fillText('0831', W / 2, H / 2);
 
-  const makeParticle = () => ({
-    x: rand(-W * 0.1, W * 1.1),
-    y: rand(0, H),
-    size:  rand(0.5, 2.2),
-    speed: rand(0.6, 1.4),
-    drift: rand(-0.3, 0.3),
-    alpha: rand(0.3, 1.0),
-    len:   rand(3, 14),
-    frozenUntil: 0,
-    freezeChance: rand(0.0005, 0.003), // フレームごとに止まる確率（粒子ごとに異なる）
-  });
+      const d = oc2.getImageData(0, 0, W, H).data;
+      const pts = [];
+      const step = Math.max(2, Math.floor(Math.sqrt(W * H) / 80));
+      for (let y = 0; y < H; y += step) {
+        for (let x = 0; x < W; x += step) {
+          if (d[(y * W + x) * 4 + 3] > 128) pts.push([x, y]);
+        }
+      }
+      // shuffle → 600点に絞る
+      for (let i = pts.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pts[i], pts[j]] = [pts[j], pts[i]];
+      }
+      const N = Math.min(600, pts.length);
+      // 粒子プールをターゲット数に合わせる
+      while (ps.length < N) ps.push({
+        x: rand(0, W), y: rand(0, H),
+        tx: 0, ty: 0,
+        alpha: rand(0.5, 1.0),
+        size: rand(1.2, 2.5),
+        phase: rand(0, Math.PI * 2),
+        frozenUntil: 0,
+        freezeChance: rand(0.0002, 0.001),
+      });
+      ps.length = N;
+      for (let i = 0; i < N; i++) {
+        ps[i].tx = pts[i][0];
+        ps[i].ty = pts[i][1];
+      }
+      sampled = true;
+    };
 
-  const setCount = n => {
-    n = Math.round(n);
-    if (n > particles.length) {
-      while (particles.length < n) particles.push(makeParticle());
-    } else {
-      particles.length = n;
-    }
-  };
+    return {
+      init() { sampled = false; startTs = null; },
+      tick(t, ts, alpha) {
+        if (startTs === null) startTs = ts;
+        if (!sampled) sample();
 
-  particles = Array.from({ length: base.count }, makeParticle);
+        const elapsed = ts - startTs;
+        // 30秒で 0→1→0 の収束波（コサインで開始0、15秒で1、30秒で0）
+        const conv = 0.5 - 0.5 * Math.cos(elapsed * Math.PI / 15);
+        const spread = 80 * (1 - conv);
 
-  const sin = (t, w) => Math.sin(t / w.period * Math.PI * 2 + w.phase);
+        for (const p of ps) {
+          const wx = Math.sin(ts * 0.6 + p.phase) * spread;
+          const wy = Math.cos(ts * 0.45 + p.phase * 1.3) * spread;
+          const ease = 0.02 + 0.06 * conv;
+          p.x += (p.tx + wx - p.x) * ease;
+          p.y += (p.ty + wy - p.y) * ease;
+
+          if (t >= p.frozenUntil) {
+            if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; }
+          }
+
+          ctx.save();
+          ctx.globalAlpha = alpha * p.alpha * (0.25 + 0.75 * conv);
+          ctx.fillStyle = 'hsl(130,70%,55%)';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (0.4 + 0.6 * conv), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      },
+    };
+  })();
+
+  // ── Mode C: サントーム（ボロミアン環） ──────────────────────
+  // RSI の三環。どれか一つを外すと残りも解ける。
+  const modeC = (() => {
+    // Real / Symbolique / Imaginaire それぞれに色相
+    const RING_DEFS = [
+      { hue:   0 },  // R: 赤
+      { hue: 220 },  // S: 青
+      { hue: 130 },  // I: 緑
+    ];
+    const PER_RING = 350;
+
+    const makeP = () => ({
+      theta: rand(0, Math.PI * 2),
+      r: 1 + rand(-0.12, 0.12),      // 1 = 正円上、±0.12 の揺らぎ
+      rV: rand(-0.0008, 0.0008),
+      speed: rand(0.003, 0.009) * (Math.random() < 0.5 ? 1 : -1),
+      alpha: rand(0.35, 1.0),
+      size: rand(1.2, 2.8),
+      frozenUntil: 0,
+      freezeChance: rand(0.0002, 0.001),
+    });
+
+    let rings = [];
+    let globalRot = 0;
+
+    return {
+      init() {
+        rings = RING_DEFS.map(d => ({ ...d, ps: Array.from({ length: PER_RING }, makeP) }));
+      },
+      tick(t, ts, alpha) {
+        globalRot += 0.00025 + 0.00015 * Math.sin(ts / 47);
+
+        // 画面中心から各環中心までの距離と環半径
+        const D = Math.min(W, H) * 0.17;
+        const R = Math.min(W, H) * 0.26;
+        const baseOp = (0.22 + 0.1 * Math.sin(ts / 31)) * alpha;
+
+        for (let ri = 0; ri < 3; ri++) {
+          const ring = rings[ri];
+          // 三角形配置: 120° ずつ
+          const ca = (ri / 3) * Math.PI * 2 - Math.PI / 2 + globalRot;
+          const cx = W / 2 + Math.cos(ca) * D;
+          const cy = H / 2 + Math.sin(ca) * D;
+
+          for (const p of ring.ps) {
+            const px = cx + Math.cos(p.theta) * R * p.r;
+            const py = cy + Math.sin(p.theta) * R * p.r;
+            ctx.save();
+            ctx.globalAlpha = baseOp * p.alpha;
+            ctx.fillStyle = `hsl(${ring.hue},75%,55%)`;
+            ctx.beginPath();
+            ctx.arc(px, py, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            if (t < p.frozenUntil) continue;
+            if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+            p.theta += p.speed;
+            p.r += p.rV;
+            if (p.r < 0.75 || p.r > 1.25) p.rV *= -1;
+          }
+        }
+      },
+    };
+  })();
+
+  // ── モード管理 ───────────────────────────────────────────
+  const MODE_MAP   = { A: modeA, B: modeB, C: modeC };
+  const MODE_ORDER = ['A', 'B', 'C'];
+  const MODE_DURATION   = 30000;
+  const TRANSITION_TIME = 4000;
+
+  modeA.init(); modeB.init(); modeC.init();
+
+  let startTime = null;
+  const indicator = document.getElementById('mode-indicator');
 
   const tick = t => {
+    if (startTime === null) startTime = t;
+    const elapsed = t - startTime;
     const ts = t / 1000;
 
-    const count   = base.count   + sin(ts, waves.count)   * waves.count.amp;
-    const speed   = base.speed   + sin(ts, waves.speed)   * waves.speed.amp;
-    const angle   = base.angle   + sin(ts, waves.angle)   * waves.angle.amp;
-    const opacity = base.opacity + sin(ts, waves.opacity) * waves.opacity.amp;
+    const modeIdx     = Math.floor(elapsed / MODE_DURATION) % MODE_ORDER.length;
+    const nextModeIdx = (modeIdx + 1) % MODE_ORDER.length;
+    const timeInMode  = elapsed % MODE_DURATION;
+    const rawBlend    = Math.max(0, (timeInMode - (MODE_DURATION - TRANSITION_TIME)) / TRANSITION_TIME);
+    const blend       = ss(Math.min(1, rawBlend));
 
-    setCount(count);
+    if (indicator) indicator.textContent = MODE_ORDER[modeIdx];
+    window._fsmState = { modeIdx, timeInMode };
 
     ctx.clearRect(0, 0, W, H);
-
-    const rad = angle * Math.PI / 180;
-    const vx = Math.cos(rad) * speed;
-    const vy = Math.sin(rad) * speed;
-    const baseAlpha = Math.max(0.02, opacity / 100);
-
-    for (const p of particles) {
-      ctx.save();
-      ctx.globalAlpha = baseAlpha * p.alpha;
-      ctx.strokeStyle = `hsl(130, 80%, 45%)`;
-      ctx.lineWidth = p.size;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x - vx * p.len * 0.3, p.y - vy * p.len * 0.3);
-      ctx.stroke();
-      ctx.restore();
-
-      if (t < p.frozenUntil) continue;
-      if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
-
-      p.x += vx * p.speed;
-      p.y += vy * p.speed + p.drift;
-
-      if (p.x > W * 1.1 || p.y > H * 1.1 || p.y < -H * 0.1) {
-        Object.assign(p, makeParticle());
-        p.x = rand(-W * 0.1, 0);
-        p.y = rand(0, H);
-      }
-    }
+    MODE_MAP[MODE_ORDER[modeIdx]].tick(t, ts, 1 - blend);
+    if (blend > 0) MODE_MAP[MODE_ORDER[nextModeIdx]].tick(t, ts, blend);
 
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
+})();
+</script>
+<script>
+(() => {
+  const CIRC = 2 * Math.PI * 23; // ≈ 144.5
+  const MODE_DURATION = 30000;
+  const KEYS = ['A', 'B', 'C'];
+
+  const els = {};
+  for (const k of KEYS) {
+    els[k] = {
+      arc:  document.getElementById(`parc-${k}`),
+      node: document.getElementById(`fnode-${k}`),
+      lbl:  document.getElementById(`flbl-${k}`),
+    };
+  }
+
+  const update = () => {
+    const s = window._fsmState;
+    if (s) {
+      const activeKey = KEYS[s.modeIdx];
+      const progress  = Math.min(1, s.timeInMode / MODE_DURATION);
+
+      for (const k of KEYS) {
+        const on = k === activeKey;
+        els[k].arc.setAttribute('stroke-dasharray',
+          on ? `${progress * CIRC} ${CIRC}` : `0 ${CIRC}`);
+        els[k].node.setAttribute('stroke',       on ? 'hsl(130,65%,42%)' : '#383838');
+        els[k].node.setAttribute('stroke-width', on ? '2'                : '1.5');
+        els[k].lbl.setAttribute('fill',          on ? '#aaa'             : '#484848');
+      }
+    }
+    requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
 })();
 </script>
 </body>
