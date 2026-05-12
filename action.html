@@ -1,5 +1,98 @@
   </main>
 </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('sandstorm');
+  const ctx = canvas.getContext('2d');
+
+  let W, H;
+  const resize = () => {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  };
+  window.addEventListener('resize', resize);
+  resize();
+
+  const base = { count: 3000, speed: 4, angle: 10, opacity: 20 };
+  const waves = {
+    count:   { amp: 1800, period: 37, phase: 0 },
+    speed:   { amp: 2.5,  period: 23, phase: 1.3 },
+    angle:   { amp: 18,   period: 53, phase: 2.7 },
+    opacity: { amp: 10,   period: 17, phase: 4.1 },
+  };
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const makeParticle = () => ({
+    x: rand(-W * 0.1, W * 1.1),
+    y: rand(0, H),
+    size:  rand(0.5, 2.2),
+    speed: rand(0.6, 1.4),
+    drift: rand(-0.3, 0.3),
+    alpha: rand(0.3, 1.0),
+    len:   rand(3, 14),
+    frozenUntil: 0,
+    freezeChance: rand(0.0005, 0.003),
+  });
+
+  let particles = Array.from({ length: base.count }, makeParticle);
+
+  const setCount = n => {
+    n = Math.round(n);
+    if (n > particles.length) {
+      while (particles.length < n) particles.push(makeParticle());
+    } else {
+      particles.length = n;
+    }
+  };
+
+  const sin = (t, w) => Math.sin(t / w.period * Math.PI * 2 + w.phase);
+
+  const tick = t => {
+    const ts = t / 1000;
+    const count   = base.count   + sin(ts, waves.count)   * waves.count.amp;
+    const speed   = base.speed   + sin(ts, waves.speed)   * waves.speed.amp;
+    const angle   = base.angle   + sin(ts, waves.angle)   * waves.angle.amp;
+    const opacity = base.opacity + sin(ts, waves.opacity) * waves.opacity.amp;
+
+    setCount(count);
+    ctx.clearRect(0, 0, W, H);
+
+    const rad = angle * Math.PI / 180;
+    const vx = Math.cos(rad) * speed;
+    const vy = Math.sin(rad) * speed;
+    const baseAlpha = Math.max(0.02, opacity / 100);
+
+    for (const p of particles) {
+      ctx.save();
+      ctx.globalAlpha = baseAlpha * p.alpha;
+      ctx.strokeStyle = `hsl(130, 80%, 45%)`;
+      ctx.lineWidth = p.size;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x - vx * p.len * 0.3, p.y - vy * p.len * 0.3);
+      ctx.stroke();
+      ctx.restore();
+
+      if (t < p.frozenUntil) continue;
+      if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+
+      p.x += vx * p.speed;
+      p.y += vy * p.speed + p.drift;
+
+      if (p.x > W * 1.1 || p.y > H * 1.1 || p.y < -H * 0.1) {
+        Object.assign(p, makeParticle());
+        p.x = rand(-W * 0.1, 0);
+        p.y = rand(0, H);
+      }
+    }
+
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+})();
+</script>
 <style>
   #aporia-bg {
     position: fixed;
