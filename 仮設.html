@@ -130,9 +130,9 @@
     </defs>
 
     <!-- transition arrows (outward curve) -->
-    <path d="M 92 47 Q 50 90 37 150" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
-    <path d="M 47 168 Q 100 184 153 168" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
-    <path d="M 163 150 Q 150 90 108 47" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path id="farr-AB" d="M 92 47 Q 50 90 37 150" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path id="farr-BC" d="M 47 168 Q 100 184 153 168" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
+    <path id="farr-CA" d="M 163 150 Q 150 90 108 47" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#farr)"/>
 
     <!-- progress arcs (driven by JS) -->
     <circle id="parc-A" cx="100" cy="32"  r="23" fill="none" stroke="hsl(130,65%,42%)" stroke-width="1.8"
@@ -198,12 +198,14 @@
       angle:   { amp: 18,   period: 53, phase: 2.7 },
       opacity: { amp: 10,   period: 17, phase: 4.1 },
     };
+    const HUES = [0, 130, 220];
     const make = () => ({
       x: rand(-W * 0.1, W * 1.1), y: rand(0, H),
       size: rand(0.5, 2.2), speed: rand(0.6, 1.4),
       drift: rand(-0.3, 0.3), alpha: rand(0.3, 1.0),
       len: rand(3, 14), frozenUntil: 0,
       freezeChance: rand(0.0005, 0.003),
+      ci: Math.floor(Math.random() * 3),
     });
     let ps = [];
     const setN = n => {
@@ -225,7 +227,7 @@
         for (const p of ps) {
           ctx.save();
           ctx.globalAlpha = ba * p.alpha;
-          ctx.strokeStyle = 'hsl(130,80%,45%)';
+          ctx.strokeStyle = `hsl(${HUES[p.ci]},80%,48%)`;
           ctx.lineWidth = p.size; ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
@@ -242,86 +244,55 @@
     };
   })();
 
-  // ── Mode B: アポリアへの収束 ──────────────────────────────
-  // 点群が「アポリア」というカタカナの形に引き寄せられる。
-  // 0s: 散乱 → 15s: 完全収束 → 30s: 散乱（Cへ移行）
+  // ── Mode B: 象徴 / カオス ────────────────────────────────
+  // R/G/B それぞれ異なる周波数で不規則運動。ラップアラウンド。
   const modeB = (() => {
-    let ps = [];
-    let startTs = null;
-    let sampled = false;
+    const HUES = [0, 130, 220];
+    // 色ごとに基本周波数スケールを変える（R速/G中/B遅）
+    const FR_SCALE = [1.6, 1.0, 0.55];
+    const N = 700;
 
-    const sample = () => {
-      const oc = document.createElement('canvas');
-      oc.width = W; oc.height = H;
-      const oc2 = oc.getContext('2d');
-      const fs = Math.min(W / 6, H / 3);
-      oc2.fillStyle = '#fff';
-      oc2.font = `bold ${fs}px serif`;
-      oc2.textAlign = 'center';
-      oc2.textBaseline = 'middle';
-      oc2.fillText('0831', W / 2, H / 2);
-
-      const d = oc2.getImageData(0, 0, W, H).data;
-      const pts = [];
-      const step = Math.max(2, Math.floor(Math.sqrt(W * H) / 80));
-      for (let y = 0; y < H; y += step) {
-        for (let x = 0; x < W; x += step) {
-          if (d[(y * W + x) * 4 + 3] > 128) pts.push([x, y]);
-        }
-      }
-      // shuffle → 600点に絞る
-      for (let i = pts.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pts[i], pts[j]] = [pts[j], pts[i]];
-      }
-      const N = Math.min(600, pts.length);
-      // 粒子プールをターゲット数に合わせる
-      while (ps.length < N) ps.push({
+    const make = () => {
+      const ci = Math.floor(Math.random() * 3);
+      return {
         x: rand(0, W), y: rand(0, H),
-        tx: 0, ty: 0,
-        alpha: rand(0.5, 1.0),
-        size: rand(1.2, 2.5),
-        phase: rand(0, Math.PI * 2),
+        ci,
+        alpha: rand(0.4, 1.0),
+        size: rand(1.0, 3.2),
+        amp: rand(1.2, 3.8),
+        // 4つの独立した位相でカオスな軌道を生成
+        ph: [rand(0,Math.PI*2), rand(0,Math.PI*2), rand(0,Math.PI*2), rand(0,Math.PI*2)],
+        fr: [rand(0.4, 1.1) * FR_SCALE[ci], rand(0.6, 1.4) * FR_SCALE[ci]],
         frozenUntil: 0,
-        freezeChance: rand(0.0002, 0.001),
-      });
-      ps.length = N;
-      for (let i = 0; i < N; i++) {
-        ps[i].tx = pts[i][0];
-        ps[i].ty = pts[i][1];
-      }
-      sampled = true;
+        freezeChance: rand(0.002, 0.008),
+      };
     };
 
+    let ps = [];
     return {
-      init() { sampled = false; startTs = null; },
+      init() { ps = Array.from({ length: N }, make); },
       tick(t, ts, alpha) {
-        if (startTs === null) startTs = ts;
-        if (!sampled) sample();
-
-        const elapsed = ts - startTs;
-        // 30秒で 0→1→0 の収束波（コサインで開始0、15秒で1、30秒で0）
-        const conv = 0.5 - 0.5 * Math.cos(elapsed * Math.PI / 15);
-        const spread = 80 * (1 - conv);
-
         for (const p of ps) {
-          const wx = Math.sin(ts * 0.6 + p.phase) * spread;
-          const wy = Math.cos(ts * 0.45 + p.phase * 1.3) * spread;
-          const ease = 0.02 + 0.06 * conv;
-          p.x += (p.tx + wx - p.x) * ease;
-          p.y += (p.ty + wy - p.y) * ease;
-
-          if (t >= p.frozenUntil) {
-            if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; }
-          }
+          // 二つの正弦波の積 → 振幅変調されたカオス軌道
+          const vx = p.amp * Math.sin(ts * p.fr[0] + p.ph[0]) * Math.cos(ts * p.fr[1] * 0.7 + p.ph[1]);
+          const vy = p.amp * Math.cos(ts * p.fr[0] * 0.9 + p.ph[2]) * Math.sin(ts * p.fr[1] + p.ph[3]);
 
           ctx.save();
-          ctx.globalAlpha = alpha * p.alpha * (0.25 + 0.75 * conv);
-          ctx.fillStyle = 'hsl(130,70%,55%)';
+          ctx.globalAlpha = alpha * p.alpha;
+          ctx.fillStyle = `hsl(${HUES[p.ci]},80%,52%)`;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size * (0.4 + 0.6 * conv), 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
+
+          if (t < p.frozenUntil) continue;
+          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+
+          p.x += vx;
+          p.y += vy;
+          // 画面端でラップ
+          if (p.x < 0) p.x += W; else if (p.x > W) p.x -= W;
+          if (p.y < 0) p.y += H; else if (p.y > H) p.y -= H;
         }
       },
     };
@@ -333,8 +304,8 @@
     // Real / Symbolique / Imaginaire それぞれに色相
     const RING_DEFS = [
       { hue:   0 },  // R: 赤
-      { hue: 220 },  // S: 青
-      { hue: 130 },  // I: 緑
+      { hue: 130 },  // G: 緑
+      { hue: 220 },  // B: 青
     ];
     const PER_RING = 350;
 
@@ -393,34 +364,173 @@
     };
   })();
 
-  // ── モード管理 ───────────────────────────────────────────
-  const MODE_MAP   = { A: modeA, B: modeB, C: modeC };
-  const MODE_ORDER = ['A', 'B', 'C'];
-  const MODE_DURATION   = 30000;
-  const TRANSITION_TIME = 4000;
+  // ── Mode AB: 解散（砂嵐が方向を失い散乱する） ───────────────
+  const modeAB = (() => {
+    const HUES = [0, 130, 220];
+    const N = 1200;
+    let ps = [], startTs = null;
+    const make = () => ({
+      x: rand(-W*0.1, W*1.1), y: rand(0, H),
+      ci: Math.floor(Math.random() * 3),
+      size: rand(0.8, 2.5), speed: rand(0.5, 1.4),
+      drift: rand(-0.8, 0.8), alpha: rand(0.3, 1.0),
+      len: rand(2, 10), ph: rand(0, Math.PI * 2),
+      frozenUntil: 0, freezeChance: rand(0.001, 0.005),
+    });
+    return {
+      init() { ps = Array.from({length: N}, make); startTs = null; },
+      tick(t, ts, alpha) {
+        if (startTs === null) startTs = ts;
+        const prog = Math.min(1, (ts - startTs) / 5);
+        const baseAngle = 10 + prog * 160 * Math.sin(ts * 1.5 + 0.5);
+        const baseSpeed = 4 * (1 - prog * 0.65);
+        const rad = baseAngle * Math.PI / 180;
+        const vxB = Math.cos(rad) * baseSpeed, vyB = Math.sin(rad) * baseSpeed;
+        for (const p of ps) {
+          const ca = prog * 3;
+          const vx = vxB + ca * Math.sin(ts * 1.1 + p.ph);
+          const vy = vyB + ca * Math.cos(ts * 0.8 + p.ph);
+          ctx.save();
+          ctx.globalAlpha = alpha * p.alpha;
+          ctx.strokeStyle = `hsl(${HUES[p.ci]},80%,48%)`;
+          ctx.lineWidth = p.size; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - vx * p.len * 0.3, p.y - vy * p.len * 0.3);
+          ctx.stroke(); ctx.restore();
+          if (t < p.frozenUntil) continue;
+          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+          p.x += vx * p.speed; p.y += vy * p.speed + p.drift * (1 + prog);
+          if (p.x > W*1.2 || p.x < -W*0.2 || p.y > H*1.2 || p.y < -H*0.2) {
+            Object.assign(p, make()); p.x = rand(-W*0.1, 0); p.y = rand(0, H);
+          }
+        }
+      },
+    };
+  })();
 
-  modeA.init(); modeB.init(); modeC.init();
+  // ── Mode BC: 凝集（カオスが色ごとに集まり始める） ──────────
+  const modeBC = (() => {
+    const HUES = [0, 130, 220];
+    const FR_SCALE = [1.6, 1.0, 0.55];
+    const ATT = [[-0.2,-0.12],[0.2,-0.12],[0.0,0.18]]; // 3色の収束先（画面中心からの比率）
+    const N = 700;
+    let ps = [], startTs = null;
+    const make = () => {
+      const ci = Math.floor(Math.random() * 3);
+      return {
+        x: rand(0, W), y: rand(0, H), ci,
+        alpha: rand(0.4, 1.0), size: rand(1.0, 3.2), amp: rand(1.2, 3.8),
+        ph: [rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2),rand(0,Math.PI*2)],
+        fr: [rand(0.4,1.1)*FR_SCALE[ci], rand(0.6,1.4)*FR_SCALE[ci]],
+        frozenUntil: 0, freezeChance: rand(0.002, 0.006),
+      };
+    };
+    return {
+      init() { ps = Array.from({length: N}, make); startTs = null; },
+      tick(t, ts, alpha) {
+        if (startTs === null) startTs = ts;
+        const prog = Math.min(1, (ts - startTs) / 5);
+        const att = prog * prog * 0.07;
+        for (const p of ps) {
+          const scale = 1 - prog * 0.75;
+          const vx = p.amp * scale * Math.sin(ts*p.fr[0]+p.ph[0]) * Math.cos(ts*p.fr[1]*0.7+p.ph[1]);
+          const vy = p.amp * scale * Math.cos(ts*p.fr[0]*0.9+p.ph[2]) * Math.sin(ts*p.fr[1]+p.ph[3]);
+          const ax = (W/2 + ATT[p.ci][0]*W - p.x) * att;
+          const ay = (H/2 + ATT[p.ci][1]*H - p.y) * att;
+          ctx.save();
+          ctx.globalAlpha = alpha * p.alpha;
+          ctx.fillStyle = `hsl(${HUES[p.ci]},80%,52%)`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+          if (t < p.frozenUntil) continue;
+          if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+          p.x += vx + ax; p.y += vy + ay;
+          if (p.x < 0) p.x += W; else if (p.x > W) p.x -= W;
+          if (p.y < 0) p.y += H; else if (p.y > H) p.y -= H;
+        }
+      },
+    };
+  })();
+
+  // ── Mode CA: 解放（輪が加速・膨張して砂嵐へ戻る） ──────────
+  const modeCA = (() => {
+    const RING_DEFS = [{hue:0},{hue:130},{hue:220}];
+    const PER_RING = 350;
+    const makeP = () => ({
+      theta: rand(0, Math.PI*2), r: 1+rand(-0.12,0.12),
+      speed: rand(0.003,0.009)*(Math.random()<0.5?1:-1),
+      alpha: rand(0.35,1.0), size: rand(1.2,2.8),
+      frozenUntil: 0, freezeChance: rand(0.0002,0.001),
+    });
+    let rings = [], startTs = null, globalRot = 0;
+    return {
+      init() {
+        rings = RING_DEFS.map(d => ({...d, ps: Array.from({length: PER_RING}, makeP)}));
+        startTs = null; globalRot = 0;
+      },
+      tick(t, ts, alpha) {
+        if (startTs === null) startTs = ts;
+        const prog = Math.min(1, (ts - startTs) / 5);
+        globalRot += 0.00025 + prog * 0.003;
+        const D = Math.min(W,H) * 0.17;
+        const R = Math.min(W,H) * (0.26 + prog * 0.22);
+        const baseOp = (0.22 + 0.1*Math.sin(ts/31)) * alpha * (1 - prog * 0.6);
+        for (let ri = 0; ri < 3; ri++) {
+          const ring = rings[ri];
+          const ca = (ri/3)*Math.PI*2 - Math.PI/2 + globalRot;
+          const cx = W/2 + Math.cos(ca)*D, cy = H/2 + Math.sin(ca)*D;
+          for (const p of ring.ps) {
+            const px = cx + Math.cos(p.theta)*R*p.r;
+            const py = cy + Math.sin(p.theta)*R*p.r;
+            ctx.save();
+            ctx.globalAlpha = baseOp * p.alpha;
+            ctx.fillStyle = `hsl(${ring.hue},75%,55%)`;
+            ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            if (t < p.frozenUntil) continue;
+            if (Math.random() < p.freezeChance) { p.frozenUntil = t + 500; continue; }
+            p.theta += p.speed * (1 + prog * 5);
+          }
+        }
+      },
+    };
+  })();
+
+  // ── スケジュール管理 ─────────────────────────────────────
+  const SCHEDULE = [
+    { key: 'A',  dur: 25000 },
+    { key: 'AB', dur:  5000 },
+    { key: 'B',  dur: 25000 },
+    { key: 'BC', dur:  5000 },
+    { key: 'C',  dur: 25000 },
+    { key: 'CA', dur:  5000 },
+  ];
+  const TOTAL_DUR = SCHEDULE.reduce((s, m) => s + m.dur, 0);
+  const CUM = (() => { let a = 0; return SCHEDULE.map(m => { const c = a; a += m.dur; return c; }); })();
+  const MODE_MAP = { A: modeA, AB: modeAB, B: modeB, BC: modeBC, C: modeC, CA: modeCA };
+
+  modeA.init(); modeAB.init(); modeB.init(); modeBC.init(); modeC.init(); modeCA.init();
 
   let startTime = null;
   const indicator = document.getElementById('mode-indicator');
 
   const tick = t => {
     if (startTime === null) startTime = t;
-    const elapsed = t - startTime;
-    const ts = t / 1000;
+    const elapsed    = t - startTime;
+    const ts         = t / 1000;
+    const cycleTime  = elapsed % TOTAL_DUR;
+    let si = 0;
+    for (let i = SCHEDULE.length - 1; i >= 0; i--) {
+      if (cycleTime >= CUM[i]) { si = i; break; }
+    }
+    const entry      = SCHEDULE[si];
+    const timeInMode = cycleTime - CUM[si];
 
-    const modeIdx     = Math.floor(elapsed / MODE_DURATION) % MODE_ORDER.length;
-    const nextModeIdx = (modeIdx + 1) % MODE_ORDER.length;
-    const timeInMode  = elapsed % MODE_DURATION;
-    const rawBlend    = Math.max(0, (timeInMode - (MODE_DURATION - TRANSITION_TIME)) / TRANSITION_TIME);
-    const blend       = ss(Math.min(1, rawBlend));
-
-    if (indicator) indicator.textContent = MODE_ORDER[modeIdx];
-    window._fsmState = { modeIdx, timeInMode };
+    if (indicator) indicator.textContent = entry.key;
+    window._fsmState = { key: entry.key, timeInMode, dur: entry.dur };
 
     ctx.clearRect(0, 0, W, H);
-    MODE_MAP[MODE_ORDER[modeIdx]].tick(t, ts, 1 - blend);
-    if (blend > 0) MODE_MAP[MODE_ORDER[nextModeIdx]].tick(t, ts, blend);
+    MODE_MAP[entry.key].tick(t, ts, 1);
 
     requestAnimationFrame(tick);
   };
@@ -429,32 +539,50 @@
 </script>
 <script>
 (() => {
-  const CIRC = 2 * Math.PI * 23; // ≈ 144.5
-  const MODE_DURATION = 30000;
-  const KEYS = ['A', 'B', 'C'];
-
+  const CIRC = 2 * Math.PI * 23;
+  const MAIN = ['A', 'B', 'C'];
   const els = {};
-  for (const k of KEYS) {
+  for (const k of MAIN) {
     els[k] = {
       arc:  document.getElementById(`parc-${k}`),
       node: document.getElementById(`fnode-${k}`),
       lbl:  document.getElementById(`flbl-${k}`),
     };
   }
+  const arrs = {
+    AB: document.getElementById('farr-AB'),
+    BC: document.getElementById('farr-BC'),
+    CA: document.getElementById('farr-CA'),
+  };
 
   const update = () => {
     const s = window._fsmState;
     if (s) {
-      const activeKey = KEYS[s.modeIdx];
-      const progress  = Math.min(1, s.timeInMode / MODE_DURATION);
+      const progress = Math.min(1, s.timeInMode / s.dur);
+      const isTrans  = s.key.length > 1;
 
-      for (const k of KEYS) {
-        const on = k === activeKey;
-        els[k].arc.setAttribute('stroke-dasharray',
-          on ? `${progress * CIRC} ${CIRC}` : `0 ${CIRC}`);
-        els[k].node.setAttribute('stroke',       on ? 'hsl(130,65%,42%)' : '#383838');
-        els[k].node.setAttribute('stroke-width', on ? '2'                : '1.5');
-        els[k].lbl.setAttribute('fill',          on ? '#aaa'             : '#484848');
+      for (const k of MAIN) {
+        els[k].arc.setAttribute('stroke-dasharray', `0 ${CIRC}`);
+        els[k].node.setAttribute('stroke', '#383838');
+        els[k].node.setAttribute('stroke-width', '1.5');
+        els[k].lbl.setAttribute('fill', '#484848');
+      }
+      for (const arr of Object.values(arrs)) {
+        arr.setAttribute('stroke', '#333');
+        arr.setAttribute('stroke-width', '1.2');
+      }
+
+      if (isTrans) {
+        const arr = arrs[s.key];
+        if (arr) {
+          arr.setAttribute('stroke', 'hsl(130,65%,42%)');
+          arr.setAttribute('stroke-width', '2.5');
+        }
+      } else {
+        els[s.key].arc.setAttribute('stroke-dasharray', `${progress * CIRC} ${CIRC}`);
+        els[s.key].node.setAttribute('stroke', 'hsl(130,65%,42%)');
+        els[s.key].node.setAttribute('stroke-width', '2');
+        els[s.key].lbl.setAttribute('fill', '#aaa');
       }
     }
     requestAnimationFrame(update);
