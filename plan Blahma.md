@@ -44,4 +44,7 @@ Fedora LTS 44 - ThinkPad(x86)
 # 索中 の方向性
 LinuxDriver 互換を保つ
 
+# COPYRIGHT
+变脸实验室
+
 
