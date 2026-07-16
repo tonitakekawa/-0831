@@ -1,4 +1,4 @@
-pandoc top.md 出来事.md 好き.md 内容.md `
+pandoc top.md わたし.md 出来事.md 好き.md 内容.md `
   -o index.html `
   --standalone `
   --include-in-header=frame-header.html `
