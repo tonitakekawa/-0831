@@ -1,7 +1,7 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
-pandoc top.md わたし.md 出来事.md 好き.md 内容.md \
+pandoc top.md わたし.md 出来事.md 好き.md 中国.md 内容.md \
   -o index.html \
   --standalone \
   --include-in-header=frame-header.html \
