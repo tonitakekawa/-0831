@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>状態遷移図リアルタイム表示版</title>
+    <style>
+        body { background: #111; color: #fff; font-family: sans-serif; }
+        canvas { background: #222; display: block; margin: 20px auto; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="680" height="360"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // ==========================================
+    // 1. 【一番の基礎】ゲームの全状態
+    // ==========================================
+    const state = {
+        scene: "TITLE", // "TITLE" | "PLAYING" | "GAMEOVER" | "CLEAR"
+        score: 0,
+        ball: { x: 200, y: 180, dx: 2, dy: -2, radius: 8 },
+        paddle: { x: 160, width: 75, height: 10, speed: 7 },
+        input: { right: false, left: false },
+        bricks: []
+    };
+
+    const brickConfig = { rows: 3, cols: 5, width: 65, height: 18, padding: 8, offsetTop: 30, offsetLeft: 20 };
+
+    function resetGame() {
+        state.score = 0;
+        state.ball.x = 200;
+        state.ball.y = 180;
+        state.ball.dx = 2;
+        state.ball.dy = -2;
+        state.paddle.x = 160;
+
+        state.bricks = [];
+        for (let c = 0; c < brickConfig.cols; c++) {
+            state.bricks[c] = [];
+            for (let r = 0; r < brickConfig.rows; r++) {
+                const x = c * (brickConfig.width + brickConfig.padding) + brickConfig.offsetLeft;
+                const y = r * (brickConfig.height + brickConfig.padding) + brickConfig.offsetTop;
+                state.bricks[c][r] = { x, y, status: 1 };
+            }
+        }
+    }
+
+    // ==========================================
+    // 2. 入力処理（状態を切り替えるトリガー）
+    // ==========================================
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight") state.input.right = true;
+        if (e.key === "ArrowLeft") state.input.left = true;
+
+        if (e.key === " " || e.key === "Enter") {
+            if (state.scene === "TITLE") {
+                resetGame();
+                state.scene = "PLAYING";
+            } else if (state.scene === "GAMEOVER" || state.scene === "CLEAR") {
+                state.scene = "TITLE";
+            }
+        }
+    });
+
+    document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowRight") state.input.right = false;
+        if (e.key === "ArrowLeft") state.input.left = false;
+    });
+
+    // ==========================================
+    // 3. 更新ロジック
+    // ==========================================
+    function update() {
+        if (state.scene !== "PLAYING") return;
+
+        if (state.input.right && state.paddle.x < 380 - state.paddle.width) {
+            state.paddle.x += state.paddle.speed;
+        } else if (state.input.left && state.paddle.x > 0) {
+            state.paddle.x -= state.paddle.speed;
+        }
+
+        state.ball.x += state.ball.dx;
+        state.ball.y += state.ball.dy;
+
+        // 壁との反射（ゲームエリア幅: 380px）
+        if (state.ball.x + state.ball.dx > 380 - state.ball.radius || state.ball.x + state.ball.dx < state.ball.radius) {
+            state.ball.dx = -state.ball.dx;
+        }
+        if (state.ball.y + state.ball.dy < state.ball.radius) {
+            state.ball.dy = -state.ball.dy;
+        } else if (state.ball.y + state.ball.dy > canvas.height - state.ball.radius - state.paddle.height) {
+            if (state.ball.x > state.paddle.x && state.ball.x < state.paddle.x + state.paddle.width) {
+                state.ball.dy = -state.ball.dy;
+            } else if (state.ball.y > canvas.height) {
+                state.scene = "GAMEOVER";
+            }
+        }
+
+        let remainingBricks = 0;
+        for (let c = 0; c < brickConfig.cols; c++) {
+            for (let r = 0; r < brickConfig.rows; r++) {
+                const b = state.bricks[c][r];
+                if (b.status === 1) {
+                    remainingBricks++;
+                    if (state.ball.x > b.x && state.ball.x < b.x + brickConfig.width && 
+                        state.ball.y > b.y && state.ball.y < b.y + brickConfig.height) {
+                        state.ball.dy = -state.ball.dy;
+                        b.status = 0;
+                        state.score += 10;
+                    }
+                }
+            }
+        }
+
+        if (remainingBricks === 0) {
+            state.scene = "CLEAR";
+        }
+    }
+
+    // ==========================================
+    // 4. 描画
+    // ==========================================
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // --- A. ゲーム領域の描画 (左側 0 ~ 380px) ---
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, 380, canvas.height);
+        ctx.clip(); // ゲームエリア外にはみ出さないようにクリップ
+
+        if (state.scene === "TITLE") {
+            ctx.fillStyle = "#fff";
+            ctx.font = "20px sans-serif";
+            ctx.fillText("BLOCK BREAKER", 100, 160);
+            ctx.font = "12px sans-serif";
+            ctx.fillText("Press SPACE / ENTER to Start", 100, 200);
+        } else {
+            // ブロック
+            for (let c = 0; c < brickConfig.cols; c++) {
+                for (let r = 0; r < brickConfig.rows; r++) {
+                    if (state.bricks[c][r].status === 1) {
+                        const b = state.bricks[c][r];
+                        ctx.fillStyle = "#ff5722";
+                        ctx.fillRect(b.x, b.y, brickConfig.width, brickConfig.height);
+                    }
+                }
+            }
+            // パドル＆ボール
+            ctx.fillStyle = "#00bcd4";
+            ctx.fillRect(state.paddle.x, canvas.height - state.paddle.height, state.paddle.width, state.paddle.height);
+
+            ctx.beginPath();
+            ctx.arc(state.ball.x, state.ball.y, state.ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.fillStyle = "#fff";
+            ctx.font = "14px sans-serif";
+            ctx.fillText("Score: " + state.score, 10, 20);
+
+            if (state.scene === "GAMEOVER") {
+                ctx.fillStyle = "rgba(0,0,0,0.7)";
+                ctx.fillRect(0, 0, 380, canvas.height);
+                ctx.fillStyle = "#ff5252";
+                ctx.font = "20px sans-serif";
+                ctx.fillText("GAME OVER", 130, 160);
+            } else if (state.scene === "CLEAR") {
+                ctx.fillStyle = "rgba(0,0,0,0.7)";
+                ctx.fillRect(0, 0, 380, canvas.height);
+                ctx.fillStyle = "#4caf50";
+                ctx.font = "20px sans-serif";
+                ctx.fillText("CLEAR!", 155, 160);
+            }
+        }
+        ctx.restore();
+
+        // 境界線
+        ctx.strokeStyle = "#444";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(380, 0);
+        ctx.lineTo(380, canvas.height);
+        ctx.stroke();
+
+        // --- B. 状態遷移図（State Diagram）の描画 (右側 380 ~ 680px) ---
+        drawStateDiagram(380, 0, 300, canvas.height);
+    }
+
+    // 状態遷移図（デバッグパネル）描画関数
+    function drawStateDiagram(offsetX, offsetY, width, height) {
+        // 背景パネル
+        ctx.fillStyle = "#181818";
+        ctx.fillRect(offsetX, offsetY, width, height);
+
+        ctx.fillStyle = "#aaa";
+        ctx.font = "bold 13px monospace";
+        ctx.fillText("=== STATE MONITOR ===", offsetX + 15, 25);
+
+        // 定義されているノード（状態）の位置
+        const nodes = {
+            TITLE:    { x: offsetX + 150, y: 70,  label: "TITLE" },
+            PLAYING:  { x: offsetX + 150, y: 180, label: "PLAYING" },
+            GAMEOVER: { x: offsetX + 70,  y: 290, label: "GAMEOVER" },
+            CLEAR:    { x: offsetX + 230, y: 290, label: "CLEAR" }
+        };
+
+        // 遷移矢印を描くヘルパー
+        function drawArrow(from, to, label) {
+            ctx.strokeStyle = "#555";
+            ctx.fillStyle = "#555";
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+
+            // 矢印上のテキスト
+            const midX = (from.x + to.x) / 2;
+            const midY = (from.y + to.y) / 2;
+            ctx.font = "9px monospace";
+            ctx.fillStyle = "#888";
+            ctx.fillText(label, midX - 15, midY);
+        }
+
+        // 状態間のリンク（エッジ）描画
+        drawArrow(nodes.TITLE, nodes.PLAYING, "SPACE");
+        drawArrow(nodes.PLAYING, nodes.GAMEOVER, "MISS");
+        drawArrow(nodes.PLAYING, nodes.CLEAR, "DESTROY");
+        drawArrow(nodes.GAMEOVER, nodes.TITLE, "SPACE");
+        drawArrow(nodes.CLEAR, nodes.TITLE, "SPACE");
+
+        // 各ノード（円と文字）の描画
+        for (const [key, node] of Object.entries(nodes)) {
+            const isActive = (state.scene === key);
+
+            // 現在のアクティブノードを発光させる
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, 28, 0, Math.PI * 2);
+
+            if (isActive) {
+                ctx.fillStyle = "#2196F3";
+                ctx.shadowColor = "#2196F3";
+                ctx.shadowBlur = 15;
+                ctx.fill();
+                ctx.shadowBlur = 0; // リセット
+                ctx.strokeStyle = "#fff";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = "#333";
+                ctx.fill();
+                ctx.strokeStyle = "#666";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // ラベル
+            ctx.fillStyle = isActive ? "#fff" : "#888";
+            ctx.font = isActive ? "bold 10px monospace" : "10px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(node.label, node.x, node.y);
+        }
+
+        // テキスト配置の設定を元に戻す
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+
+        // 現在の生データ（JSON風）を最下部に表示
+        ctx.fillStyle = "#00ffcc";
+        ctx.font = "11px monospace";
+        ctx.fillText(`Current: state.scene = "${state.scene}"`, offsetX + 15, height - 15);
+    }
+
+    // ==========================================
+    // 5. メインループ
+    // ==========================================
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    loop();
+</script>
+
+</body>
+</html>
